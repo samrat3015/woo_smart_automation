@@ -1,0 +1,681 @@
+/* ============================
+   RISK SCORE PROGRESS BAR
+   Professional Design
+   ============================ */
+
+.wsa-risk-progress-bar {
+	width: 100%;
+	max-width: 140px;
+	height: 18px;
+	background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%);
+	border-radius: 14px;
+	overflow: hidden;
+	position: relative;
+	cursor: pointer;
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+	box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
+	border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.wsa-risk-progress-bar:hover {
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), inset 0 2px 4px rgba(0, 0, 0, 0.06);
+	transform: translateY(-2px) scale(1.02);
+}
+
+.wsa-progress-fill {
+	height: 100%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+	position: relative;
+	min-width: 50px;
+}
+
+.wsa-risk-low {
+	background: linear-gradient(135deg, #10b981 0%, #34d399 50%, #6ee7b7 100%);
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.wsa-risk-medium {
+	background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 50%, #fcd34d 100%);
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.wsa-risk-high {
+	background: linear-gradient(135deg, #ef4444 0%, #f87171 50%, #fca5a5 100%);
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.wsa-score-label {
+	color: #fff;
+	font-size: 11px;
+	font-weight: 700;
+	text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+	position: absolute;
+	left: 50%;
+	transform: translateX(-50%);
+	white-space: nowrap;
+	letter-spacing: 0.03em;
+}
+
+.wsa-risk-pending {
+	color: #94a3b8;
+	font-size: 13px;
+	font-style: italic;
+}
+
+.wsa-duplicate-badge {
+	display: inline-block;
+	background: #ef4444;
+	color: #fff;
+	font-size: 9px;
+	font-weight: 800;
+	padding: 2px 5px;
+	border-radius: 4px;
+	margin-top: 4px;
+	letter-spacing: 0.5px;
+	line-height: 1;
+	box-shadow: 0 1px 2px rgba(239, 68, 68, 0.3);
+}
+
+.wsa-risk-container {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+}
+
+/* ============================
+   MODAL OVERLAY
+   ============================ */
+.wsa-risk-modal-overlay {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background: rgba(15, 23, 42, 0.7);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 999999;
+	backdrop-filter: blur(8px);
+	-webkit-backdrop-filter: blur(8px);
+	animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+	from { opacity: 0; }
+	to { opacity: 1; }
+}
+
+/* ============================
+   MODAL CONTAINER
+   ============================ */
+.wsa-risk-details-modal {
+	background: #ffffff;
+	border-radius: 16px;
+	max-width: 600px;
+	width: 94%;
+	max-height: 85vh;
+	overflow: hidden;
+	box-shadow: 
+		0 20px 25px -5px rgba(0, 0, 0, 0.1),
+		0 10px 10px -5px rgba(0, 0, 0, 0.04),
+		0 0 0 1px rgba(0, 0, 0, 0.05);
+	position: relative;
+	animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+	display: flex;
+	flex-direction: column;
+}
+
+@keyframes slideUp {
+	from {
+		opacity: 0;
+		transform: translateY(30px) scale(0.95);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0) scale(1);
+	}
+}
+
+/* ============================
+   MODAL HEADER
+   ============================ */
+.wsa-modal-header {
+	padding: 24px 24px 20px;
+	background: #ffffff;
+	position: relative;
+	border-bottom: 1px solid #f1f5f9;
+}
+
+.wsa-modal-header h3 {
+	margin: 0;
+	color: #111827;
+	font-size: 20px;
+	font-weight: 700;
+	letter-spacing: -0.01em;
+}
+
+.wsa-modal-header p {
+	margin: 6px 0 0;
+	color: #64748b;
+	font-size: 14px;
+	font-weight: 500;
+}
+
+/* ============================
+   CLOSE BUTTON
+   ============================ */
+.wsa-modal-close {
+	position: absolute;
+	top: 20px;
+	right: 24px;
+	width: 32px;
+	height: 32px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 18px;
+	color: #94a3b8;
+	cursor: pointer;
+	border-radius: 50%;
+	transition: all 0.2s ease;
+	background: #f8fafc;
+	border: 1px solid #e2e8f0;
+}
+
+.wsa-modal-close:hover {
+	background: #f1f5f9;
+	color: #64748b;
+	transform: scale(1.1);
+}
+
+/* ============================
+   MODAL BODY
+   ============================ */
+.wsa-modal-body {
+	padding: 24px;
+	overflow-y: auto;
+	flex: 1;
+	background: #ffffff;
+}
+
+/* Minimal Cards */
+.wsa-fraud-check-banner {
+	background: #f0f9ff;
+	padding: 20px;
+	border-radius: 12px;
+	margin-bottom: 24px;
+	border: 1px solid #bae6fd;
+	text-align: center;
+}
+
+.wsa-fraud-check-banner p {
+	font-size: 12px;
+	color: #0369a1;
+	margin: 10px 0 0;
+}
+
+.wsa-courier-info-card {
+	padding: 20px;
+	border-radius: 12px;
+	margin-bottom: 24px;
+}
+
+.wsa-courier-info-card.success {
+	background: #f8fafc;
+	border: 1px solid #e2e8f0;
+	border-left: 4px solid #3b82f6;
+}
+
+.wsa-courier-info-card.warning {
+	background: #fffbeb;
+	border: 1px solid #fde68a;
+	border-left: 4px solid #f59e0b;
+}
+
+.wsa-courier-info-card p {
+	margin: 8px 0;
+	color: #334155;
+	font-size: 14px;
+}
+
+.wsa-card-footer {
+	font-size: 12px;
+	color: #64748b !important;
+	margin-top: 12px !important;
+	font-style: italic;
+}
+
+.wsa-signals-card {
+	padding: 16px 20px;
+	border-radius: 12px;
+	margin-bottom: 24px;
+	background: #fdfdfd;
+	border: 1px solid #f1f5f9;
+}
+
+.wsa-signals-card.negative {
+	border-left: 4px solid #ef4444;
+}
+
+.wsa-signals-card.positive {
+	border-left: 4px solid #10b981;
+}
+
+.wsa-signals-card.neutral {
+	border-left: 4px solid #94a3b8;
+}
+
+.wsa-signals-card ul {
+	margin: 0 !important;
+	padding-left: 20px !important;
+	list-style-type: disc !important;
+}
+
+.wsa-signals-card li {
+	margin-bottom: 8px;
+	color: #475569;
+	font-size: 14px;
+}
+
+.wsa-modal-body h4 {
+	font-size: 12px;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: #64748b;
+	margin: 0 0 10px;
+	font-weight: 700;
+}
+
+/* Score Summary Card */
+.wsa-score-summary {
+	display: flex;
+	align-items: center;
+	gap: 24px;
+	padding: 24px;
+	background: linear-gradient(145deg, #ffffff 0%, #f9fafb 100%);
+	border-radius: 20px;
+	margin-bottom: 28px;
+	border: 2px solid #e5e7eb;
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+.wsa-score-circle {
+	width: 90px;
+	height: 90px;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 28px;
+	font-weight: 900;
+	color: #fff;
+	flex-shrink: 0;
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+	position: relative;
+}
+
+.wsa-score-circle::after {
+	content: '';
+	position: absolute;
+	inset: -4px;
+	border-radius: 50%;
+	background: inherit;
+	opacity: 0.2;
+	filter: blur(8px);
+	z-index: -1;
+}
+
+.wsa-score-circle.low {
+	background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+}
+
+.wsa-score-circle.medium {
+	background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
+}
+
+.wsa-score-circle.high {
+	background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+}
+
+.wsa-score-info h4 {
+	margin: 0 0 6px;
+	font-size: 20px;
+	font-weight: 800;
+	color: #111827;
+	letter-spacing: -0.02em;
+}
+
+.wsa-score-info p {
+	margin: 0;
+	font-size: 14px;
+	color: #6b7280;
+	font-weight: 500;
+}
+
+/* Section Titles */
+.wsa-modal-body h4 {
+	color: #64748b;
+	margin: 0 0 12px;
+	font-size: 11px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+/* Recalculate Button */
+.wsa-recalculate-btn {
+	background: #0ea5e9 !important;
+	border: 1px solid #0ea5e9 !important;
+	color: #fff !important;
+	padding: 10px 20px !important;
+	border-radius: 8px !important;
+	font-weight: 600 !important;
+	font-size: 14px !important;
+	cursor: pointer;
+	transition: all 0.2s ease;
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.wsa-recalculate-btn:hover {
+	background: #0284c7 !important;
+	transform: translateY(-1px);
+	box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.wsa-recalculate-btn:active {
+	transform: translateY(0);
+}
+
+.wsa-recalculate-btn:disabled {
+	opacity: 0.7;
+	cursor: not-allowed;
+	transform: none;
+}
+
+.wsa-modal-section-title::before {
+	content: '';
+	width: 4px;
+	height: 16px;
+	background: linear-gradient(180deg, #4f46e5 0%, #7c3aed 100%);
+	border-radius: 3px;
+	box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);
+}
+
+/* Risk Factors List */
+.wsa-risk-details-modal ul,
+.wsa-risk-factors-list {
+	margin: 0 0 24px;
+	padding: 0;
+	list-style: none;
+}
+
+.wsa-risk-details-modal li,
+.wsa-risk-factor-item {
+	margin-bottom: 12px;
+	padding: 16px 18px;
+	background: #ffffff;
+	border-radius: 14px;
+	line-height: 1.6;
+	font-size: 13px;
+	color: #374151;
+	border: 1.5px solid #e5e7eb;
+	transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+	display: flex;
+	align-items: flex-start;
+	gap: 14px;
+}
+
+.wsa-risk-details-modal li:hover,
+.wsa-risk-factor-item:hover {
+	border-color: #9ca3af;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+	transform: translateX(6px);
+	background: #fefefe;
+}
+
+.wsa-risk-factor-item .factor-icon {
+	width: 38px;
+	height: 38px;
+	border-radius: 10px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 18px;
+	flex-shrink: 0;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.wsa-risk-factor-item .factor-icon.warning {
+	background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+}
+
+.wsa-risk-factor-item .factor-icon.danger {
+	background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+}
+
+.wsa-risk-factor-item .factor-icon.success {
+	background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+}
+
+.wsa-risk-factor-item .factor-content {
+	flex: 1;
+}
+
+.wsa-risk-factor-item .factor-title {
+	font-weight: 700;
+	color: #111827;
+	margin-bottom: 4px;
+	font-size: 14px;
+}
+
+.wsa-risk-factor-item .factor-desc {
+	font-size: 12px;
+	color: #6b7280;
+	line-height: 1.5;
+}
+
+/* Courier Score Section */
+.wsa-courier-score-section {
+	background: linear-gradient(145deg, #dbeafe 0%, #bfdbfe 100%);
+	border-radius: 18px;
+	padding: 24px;
+	margin-bottom: 24px;
+	border: 2px solid #93c5fd;
+	box-shadow: 0 4px 16px rgba(59, 130, 246, 0.15);
+	position: relative;
+	overflow: hidden;
+}
+
+.wsa-courier-score-section::before {
+	content: '';
+	position: absolute;
+	top: -50%;
+	right: -20%;
+	width: 200px;
+	height: 200px;
+	background: radial-gradient(circle, rgba(255, 255, 255, 0.4) 0%, transparent 70%);
+	border-radius: 50%;
+}
+
+.wsa-courier-score-section h4 {
+	color: #1e3a8a;
+	margin-bottom: 18px;
+}
+
+.wsa-courier-score-grid {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 14px;
+	position: relative;
+	z-index: 1;
+}
+
+.wsa-courier-stat {
+	text-align: center;
+	padding: 16px 12px;
+	background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+	border-radius: 14px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+	border: 1px solid rgba(255, 255, 255, 0.8);
+	transition: all 0.2s ease;
+}
+
+.wsa-courier-stat:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.wsa-courier-stat .stat-value {
+	font-size: 24px;
+	font-weight: 900;
+	color: #1e40af;
+	line-height: 1;
+	margin-bottom: 6px;
+}
+
+.wsa-courier-stat .stat-label {
+	font-size: 10px;
+	color: #475569;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	font-weight: 700;
+}
+
+/* ============================
+   MODAL FOOTER
+   ============================ */
+.wsa-modal-footer {
+	padding: 16px 24px;
+	border-top: 1px solid #f1f5f9;
+	background: #ffffff;
+	display: flex;
+	gap: 12px;
+	justify-content: flex-end;
+}
+
+.wsa-modal-btn {
+	padding: 10px 20px;
+	border-radius: 8px;
+	font-size: 14px;
+	font-weight: 600;
+	cursor: pointer;
+	transition: all 0.2s ease;
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	border: none;
+}
+
+.wsa-modal-btn-secondary {
+	background: #ffffff;
+	color: #475569;
+	border: 1px solid #e2e8f0;
+}
+
+.wsa-modal-btn-secondary:hover {
+	background: #f8fafc;
+	border-color: #cbd5e1;
+}
+
+.wsa-modal-btn-primary {
+	background: #4f46e5;
+	color: #fff;
+}
+
+.wsa-modal-btn-primary:hover {
+	background: #4338ca;
+}
+
+/* ============================
+   RISK SCORE BADGE IN MODAL
+   ============================ */
+.wsa-modal-score-badge {
+	display: inline-flex;
+	align-items: center;
+	padding: 4px 12px;
+	border-radius: 6px;
+	font-weight: 600;
+	font-size: 12px;
+}
+
+.wsa-modal-score-badge.low {
+	background: #ecfdf5;
+	color: #059669;
+	border: 1px solid #34d399;
+}
+
+.wsa-modal-score-badge.medium {
+	background: #fffbeb;
+	color: #d97706;
+	border: 1px solid #fbbf24;
+}
+
+.wsa-modal-score-badge.high {
+	background: #fef2f2;
+	color: #dc2626;
+	border: 1px solid #f87171;
+}
+
+/* ============================
+   LOADING STATE
+   ============================ */
+.wsa-modal-loading {
+	padding: 60px 40px;
+	text-align: center;
+}
+
+.wsa-modal-loading .spinner {
+	width: 48px;
+	height: 48px;
+	border: 3px solid #e2e8f0;
+	border-top-color: #6366f1;
+	border-radius: 50%;
+	animation: spin 0.8s linear infinite;
+	margin: 0 auto 16px;
+}
+
+@keyframes spin {
+	to { transform: rotate(360deg); }
+}
+
+.wsa-modal-loading p {
+	color: #64748b;
+	font-size: 14px;
+	margin: 0;
+}
+
+/* ============================
+   RESPONSIVE
+   ============================ */
+@media (max-width: 480px) {
+	.wsa-risk-details-modal {
+		width: 96%;
+		border-radius: 16px;
+	}
+	
+	.wsa-modal-header,
+	.wsa-modal-body,
+	.wsa-modal-footer {
+		padding-left: 20px;
+		padding-right: 20px;
+	}
+	
+	.wsa-score-summary {
+		flex-direction: column;
+		text-align: center;
+	}
+	
+	.wsa-courier-score-grid {
+		grid-template-columns: 1fr;
+	}
+}

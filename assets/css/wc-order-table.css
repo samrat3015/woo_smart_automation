@@ -1,0 +1,403 @@
+/**
+ * WooCommerce Order Table - Custom Styling
+ * Font: Jost | Status: Improved | Date: Enhanced | Totals: Deep Black
+ */
+
+/* ============================
+   GOOGLE FONT & BASE TABLE
+   ============================ */
+.wp-list-table.orders,
+.wp-list-table.orders th,
+.wp-list-table.orders td,
+.woocommerce-page .wp-list-table,
+.woocommerce-page .wp-list-table th,
+.woocommerce-page .wp-list-table td,
+.wc-orders .wp-list-table,
+.wc-orders .wp-list-table th,
+.wc-orders .wp-list-table td,
+#woocommerce-order-items,
+.edit-php.post-type-shop_order .wp-list-table,
+.edit-php.post-type-shop_order .wp-list-table th,
+.edit-php.post-type-shop_order .wp-list-table td {
+    font-family: 'Jost', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif !important;
+}
+
+/* Table header text */
+.wp-list-table.orders thead th,
+.wc-orders .wp-list-table thead th {
+    font-family: 'Jost', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    font-weight: 600 !important;
+    font-size: 12.5px !important;
+    color: #374151 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%) !important;
+    border-bottom: 2px solid #e2e8f0 !important;
+}
+
+/* Table body cells */
+.wp-list-table.orders tbody td,
+.wc-orders .wp-list-table tbody td {
+    font-family: 'Jost', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    font-size: 13.5px !important;
+    color: #374151 !important;
+    /* padding: 12px 10px !important; */
+    vertical-align: middle !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+    transition: background 0.15s ease;
+}
+
+/* Row hover */
+.wp-list-table.orders tbody tr:hover td,
+.wc-orders .wp-list-table tbody tr:hover td {
+    background: #f8fafc !important;
+}
+
+/* Order number link */
+.wp-list-table.orders .order_number a,
+.wp-list-table.orders .column-order_number a.order-view,
+.wc-orders .wp-list-table .order_number a,
+.wc-orders .wp-list-table .column-order_number a.order-view {
+    font-family: 'Jost', sans-serif !important;
+    font-weight: 700 !important;
+    font-size: 14px !important;
+    color: #111827 !important;
+    text-decoration: none !important;
+}
+
+.wp-list-table.orders .order_number a:hover,
+.wc-orders .wp-list-table .order_number a:hover,
+.wp-list-table.orders .column-order_number a.order-view:hover,
+.wc-orders .wp-list-table .column-order_number a.order-view:hover {
+    color: #6366f1 !important;
+}
+
+/* ============================
+   STATUS BADGES - IMPROVED
+   ============================ */
+.wp-list-table.orders .order_status,
+.wc-orders .wp-list-table .order_status,
+.wp-list-table.orders mark.order-status,
+.wc-orders .wp-list-table mark.order-status,
+.wp-list-table.orders .column-order_status mark,
+.wc-orders .wp-list-table .column-order_status mark,
+.order-status-label {
+    font-family: 'Jost', sans-serif !important;
+}
+
+/* All status marks */
+.wp-list-table mark.order-status,
+.wc-orders mark.order-status {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 5px;
+    font-family: 'Jost', sans-serif !important;
+    font-size: 11.5px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.02em !important;
+    padding: 5px 12px !important;
+    border-radius: 20px !important;
+    line-height: 1.4 !important;
+    white-space: nowrap !important;
+    text-transform: capitalize !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06) !important;
+    transition: all 0.2s ease !important;
+    background-clip: padding-box !important;
+}
+
+/* Processing */
+.wp-list-table mark.order-status.status-processing,
+.wc-orders mark.order-status.status-processing {
+    background: linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%) !important;
+    color: #1d4ed8 !important;
+    border: 1px solid #bfdbfe !important;
+}
+
+/* On Hold */
+.wp-list-table mark.order-status.status-on-hold,
+.wc-orders mark.order-status.status-on-hold {
+    background: linear-gradient(135deg, #fef3c7 0%, #fffbeb 100%) !important;
+    color: #b45309 !important;
+    border: 1px solid #fde68a !important;
+}
+
+/* Completed */
+.wp-list-table mark.order-status.status-completed,
+.wc-orders mark.order-status.status-completed {
+    background: linear-gradient(135deg, #d1fae5 0%, #ecfdf5 100%) !important;
+    color: #047857 !important;
+    border: 1px solid #a7f3d0 !important;
+}
+
+/* Cancelled */
+.wp-list-table mark.order-status.status-cancelled,
+.wc-orders mark.order-status.status-cancelled {
+    background: linear-gradient(135deg, #fee2e2 0%, #fef2f2 100%) !important;
+    color: #b91c1c !important;
+    border: 1px solid #fecaca !important;
+}
+
+/* Refunded */
+.wp-list-table mark.order-status.status-refunded,
+.wc-orders mark.order-status.status-refunded {
+    background: linear-gradient(135deg, #e5e7eb 0%, #f3f4f6 100%) !important;
+    color: #4b5563 !important;
+    border: 1px solid #d1d5db !important;
+}
+
+/* Failed */
+.wp-list-table mark.order-status.status-failed,
+.wc-orders mark.order-status.status-failed {
+    background: linear-gradient(135deg, #fce7f3 0%, #fdf2f8 100%) !important;
+    color: #9d174d !important;
+    border: 1px solid #fbcfe8 !important;
+}
+
+/* Pending */
+.wp-list-table mark.order-status.status-pending,
+.wc-orders mark.order-status.status-pending {
+    background: linear-gradient(135deg, #e0e7ff 0%, #eef2ff 100%) !important;
+    color: #4338ca !important;
+    border: 1px solid #c7d2fe !important;
+}
+
+/* Trash */
+.wp-list-table mark.order-status.status-trash,
+.wc-orders mark.order-status.status-trash {
+    background: linear-gradient(135deg, #f3f4f6 0%, #f9fafb 100%) !important;
+    color: #6b7280 !important;
+    border: 1px solid #e5e7eb !important;
+}
+
+/* Draft */
+.wp-list-table mark.order-status.status-draft,
+.wc-orders mark.order-status.status-draft {
+    background: linear-gradient(135deg, #f5f3ff 0%, #faf5ff 100%) !important;
+    color: #6d28d9 !important;
+    border: 1px solid #ddd6fe !important;
+}
+
+/* Checkout Draft (WooCommerce Blocks) */
+.wp-list-table mark.order-status.status-checkout-draft,
+.wc-orders mark.order-status.status-checkout-draft {
+    background: linear-gradient(135deg, #f5f3ff 0%, #faf5ff 100%) !important;
+    color: #7c3aed !important;
+    border: 1px solid #ddd6fe !important;
+}
+
+/* Hover effect for all statuses */
+.wp-list-table mark.order-status:hover,
+.wc-orders mark.order-status:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Hide default WooCommerce status tips icon */
+.wp-list-table mark.order-status .tips,
+.wc-orders mark.order-status .tips {
+    font-family: 'Jost', sans-serif !important;
+}
+
+/* ============================
+   DATE COLUMN - ENHANCED UI
+   ============================ */
+.wp-list-table.orders .column-order_date,
+.wp-list-table.orders td.order_date,
+.wp-list-table.orders td.column-order_date,
+.wc-orders .wp-list-table .column-order_date,
+.wc-orders .wp-list-table td.order_date,
+.wc-orders .wp-list-table td.column-order_date,
+.wp-list-table.orders td.date.column-date,
+.wc-orders .wp-list-table td.date.column-date {
+    font-family: 'Jost', sans-serif !important;
+}
+
+.wp-list-table.orders td.order_date time,
+.wp-list-table.orders td.column-order_date time,
+.wc-orders .wp-list-table td.order_date time,
+.wc-orders .wp-list-table td.column-order_date time,
+.wp-list-table.orders td.date.column-date time,
+.wc-orders .wp-list-table td.date.column-date time {
+    font-family: 'Jost', sans-serif !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    color: #1f2937 !important;
+    display: inline-block;
+    line-height: 1.5;
+}
+
+/* Date abbr/tooltip */
+.wp-list-table.orders td.order_date abbr,
+.wp-list-table.orders td.column-order_date abbr,
+.wc-orders .wp-list-table td.order_date abbr,
+.wc-orders .wp-list-table td.column-order_date abbr {
+    font-family: 'Jost', sans-serif !important;
+    font-weight: 600 !important;
+    font-size: 13.5px !important;
+    color: #111827 !important;
+    text-decoration: none !important;
+    border-bottom: none !important;
+}
+
+/* Relative date text ("X hours ago" etc.) */
+.wp-list-table.orders td.order_date .wc-order-date-relative,
+.wc-orders .wp-list-table td.order_date .wc-order-date-relative {
+    display: block;
+    font-size: 11.5px !important;
+    font-weight: 400 !important;
+    color: #9ca3af !important;
+    margin-top: 2px;
+}
+
+/* ============================
+   TOTAL COLUMN - DEEP BLACK
+   ============================ */
+.wp-list-table.orders .column-order_total,
+.wp-list-table.orders td.order_total,
+.wp-list-table.orders td.column-order_total,
+.wc-orders .wp-list-table .column-order_total,
+.wc-orders .wp-list-table td.order_total,
+.wc-orders .wp-list-table td.column-order_total {
+    font-family: 'Jost', sans-serif !important;
+    font-weight: 800 !important;
+    font-size: 14px !important;
+    color: #000000 !important;
+}
+
+/* Total amount - bdi and span */
+.wp-list-table.orders td.order_total .amount,
+.wp-list-table.orders td.column-order_total .amount,
+.wc-orders .wp-list-table td.order_total .amount,
+.wc-orders .wp-list-table td.column-order_total .amount,
+.wp-list-table.orders td.order_total bdi,
+.wp-list-table.orders td.column-order_total bdi,
+.wc-orders .wp-list-table td.order_total bdi,
+.wc-orders .wp-list-table td.column-order_total bdi {
+    font-family: 'Jost', sans-serif !important;
+    font-weight: 800 !important;
+    color: #000000 !important;
+    font-size: 14px !important;
+}
+
+/* Currency symbol */
+.wp-list-table.orders td.order_total .woocommerce-Price-currencySymbol,
+.wp-list-table.orders td.column-order_total .woocommerce-Price-currencySymbol,
+.wc-orders .wp-list-table td.order_total .woocommerce-Price-currencySymbol,
+.wc-orders .wp-list-table td.column-order_total .woocommerce-Price-currencySymbol {
+    font-family: 'Jost', sans-serif !important;
+    font-weight: 800 !important;
+    color: #000000 !important;
+}
+
+/* ============================
+   CUSTOMER / BILLING NAME
+   ============================ */
+.wp-list-table.orders td.shipping_address,
+.wp-list-table.orders td.billing_address,
+.wp-list-table.orders td.column-billing_address,
+.wp-list-table.orders td.column-shipping_address,
+.wc-orders .wp-list-table td.shipping_address,
+.wc-orders .wp-list-table td.billing_address,
+.wc-orders .wp-list-table td.column-billing_address,
+.wc-orders .wp-list-table td.column-shipping_address {
+    font-family: 'Jost', sans-serif !important;
+    font-size: 13px !important;
+    color: #374151 !important;
+    line-height: 1.5 !important;
+}
+
+/* ============================
+   SUBSUBSUB STATUS FILTER LINKS
+   ============================ */
+.subsubsub {
+    font-family: 'Jost', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+}
+
+.subsubsub li a {
+    font-family: 'Jost', sans-serif !important;
+    font-weight: 500 !important;
+    font-size: 13px !important;
+}
+
+.subsubsub li a .count {
+    font-family: 'Jost', sans-serif !important;
+    font-weight: 600 !important;
+    color: #6b7280 !important;
+}
+
+/* ============================
+   SEARCH & FILTER AREA
+   ============================ */
+.post-type-shop_order .tablenav,
+.wc-orders .tablenav {
+    font-family: 'Jost', sans-serif !important;
+}
+
+.post-type-shop_order .search-box input[type="search"],
+.wc-orders .search-box input[type="search"] {
+    font-family: 'Jost', sans-serif !important;
+    font-size: 13px !important;
+    border-radius: 6px !important;
+    border: 1px solid #d1d5db !important;
+    padding: 4px 10px !important;
+}
+
+.post-type-shop_order .search-box input[type="search"]:focus,
+.wc-orders .search-box input[type="search"]:focus {
+    border-color: #6366f1 !important;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15) !important;
+    outline: none !important;
+}
+
+/* ============================
+   PAGINATION AREA
+   ============================ */
+.post-type-shop_order .tablenav-pages,
+.wc-orders .tablenav-pages {
+    font-family: 'Jost', sans-serif !important;
+}
+
+.post-type-shop_order .tablenav-pages .pagination-links a,
+.post-type-shop_order .tablenav-pages .pagination-links .current,
+.wc-orders .tablenav-pages .pagination-links a,
+.wc-orders .tablenav-pages .pagination-links .current {
+    font-family: 'Jost', sans-serif !important;
+    font-weight: 600 !important;
+    border-radius: 6px !important;
+}
+
+/* ============================
+   ACTION BUTTONS (View etc.)
+   ============================ */
+.wp-list-table.orders .wc-action-button-group a,
+.wc-orders .wp-list-table .wc-action-button-group a {
+    transition: all 0.2s ease !important;
+}
+
+.wp-list-table.orders .wc-action-button-group a:hover,
+.wc-orders .wp-list-table .wc-action-button-group a:hover {
+    transform: scale(1.1) !important;
+}
+
+/* ============================
+   BULK ACTIONS
+   ============================ */
+.post-type-shop_order .bulkactions select,
+.wc-orders .bulkactions select {
+    font-family: 'Jost', sans-serif !important;
+    font-size: 13px !important;
+    border-radius: 6px !important;
+}
+
+/* ============================
+   ITEMS COUNT IN ORDER
+   ============================ */
+.wp-list-table.orders td.order_total small,
+.wc-orders .wp-list-table td.order_total small,
+.wp-list-table.orders td.column-order_total small,
+.wc-orders .wp-list-table td.column-order_total small {
+    font-family: 'Jost', sans-serif !important;
+    font-weight: 500 !important;
+    font-size: 11px !important;
+    color: #6b7280 !important;
+}

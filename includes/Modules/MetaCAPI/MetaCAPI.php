@@ -62,6 +62,13 @@ class MetaCAPI {
 				add_action( 'woocommerce_order_status_completed', [ $this, 'track_purchase' ], 10, 1 );
 			}
 		}
+
+		// Admin Integration
+		if ( is_admin() ) {
+			require_once WSA_PATH . 'includes/Modules/MetaCAPI/AdminIntegration.php';
+			$admin_integration = new AdminIntegration();
+			$admin_integration->init();
+		}
 	}
 
 	/**
@@ -249,7 +256,7 @@ class MetaCAPI {
 		if ( ! $order ) return;
 
 		// Prevent duplicate firing
-		if ( $order->get_meta( '_wsa_meta_purchase_fired' ) ) {
+		if ( $order->get_meta( '_wsa_meta_purchase_fired' ) === 'yes' ) {
 			return;
 		}
 
@@ -265,17 +272,21 @@ class MetaCAPI {
 			$content_ids_js[] = "'" . esc_js( $pid ) . "'";
 		}
 		
-		// Browser Pixel (on thank you page)
-		?>
-		<script>
-		fbq('track', 'Purchase', {
-			content_ids: [<?php echo implode( ',', $content_ids_js ); ?>],
-			content_type: 'product',
-			value: <?php echo esc_js( $value ); ?>,
-			currency: '<?php echo esc_js( $currency ); ?>'
-		}, {eventID: '<?php echo esc_js( $event_id ); ?>'});
-		</script>
-		<?php
+		// Browser Pixel (only on frontend thank you page)
+		if ( ! is_admin() && ( is_wc_endpoint_url( 'order-received' ) || isset( $_GET['key'] ) ) ) {
+			?>
+			<script>
+			if (typeof fbq !== 'undefined') {
+				fbq('track', 'Purchase', {
+					content_ids: [<?php echo implode( ',', $content_ids_js ); ?>],
+					content_type: 'product',
+					value: <?php echo esc_js( $value ); ?>,
+					currency: '<?php echo esc_js( $currency ); ?>'
+				}, {eventID: '<?php echo esc_js( $event_id ); ?>'});
+			}
+			</script>
+			<?php
+		}
 
 		// Server CAPI
 		$event_data = [

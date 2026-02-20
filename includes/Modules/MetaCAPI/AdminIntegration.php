@@ -64,14 +64,19 @@ class AdminIntegration {
 
 			$order_id = $order->get_id();
 			$fired    = $order->get_meta( '_wsa_meta_purchase_fired' );
+			$status   = $order->get_status();
 
 			echo '<div class="wsa-capi-status-wrapper" id="wsa-capi-wrapper-' . $order_id . '">';
+			
 			if ( $fired === 'yes' ) {
 				echo '<span class="wsa-status-badge sent" title="Purchase event already sent to Meta"><span class="dashicons dashicons-yes"></span> Sent</span>';
+			} elseif ( in_array( $status, [ 'cancelled', 'refunded', 'failed' ] ) ) {
+				echo '<span class="wsa-status-badge disabled" title="Cannot send Purchase event for ' . ucfirst( $status ) . ' orders">N/A</span>';
 			} else {
 				$icon = '<svg class="wsa-meta-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><path fill="currentColor" d="M400 32H48A48 48 0 0 0 0 80v352a48 48 0 0 0 48 48h137.25V327.69h-63V256h63v-54.64c0-62.15 37-96.48 93.67-96.48 27.14 0 55.52 4.84 55.52 4.84v61h-31.27c-30.81 0-40.42 19.12-40.42 38.73V256h68.78l-11 71.69h-57.78V480H400a48 48 0 0 0 48-48V80a48 48 0 0 0-48-48z"/></svg>';
 				echo '<button type="button" class="button wsa-fire-capi-btn" data-order-id="' . $order_id . '" title="Manually send Purchase event to Meta">' . $icon . ' Purchase</button>';
 			}
+			
 			echo '</div>';
 		}
 	}
@@ -103,6 +108,12 @@ class AdminIntegration {
 
 			// Skip if already fired
 			if ( $order->get_meta( '_wsa_meta_purchase_fired' ) === 'yes' ) {
+				$skipped_count++;
+				continue;
+			}
+
+			// Skip if Cancelled, Refunded or Failed
+			if ( in_array( $order->get_status(), [ 'cancelled', 'refunded', 'failed' ] ) ) {
 				$skipped_count++;
 				continue;
 			}
@@ -163,6 +174,10 @@ class AdminIntegration {
 
 		if ( $order->get_meta( '_wsa_meta_purchase_fired' ) === 'yes' ) {
 			wp_send_json_error( [ 'message' => 'Already sent to Meta' ] );
+		}
+
+		if ( in_array( $order->get_status(), [ 'cancelled', 'refunded', 'failed' ] ) ) {
+			wp_send_json_error( [ 'message' => 'Cannot send Purchase event for ' . $order->get_status() . ' orders' ] );
 		}
 
 		$meta_capi = new MetaCAPI();
@@ -232,6 +247,12 @@ class AdminIntegration {
 				background: #dcfce7;
 				color: #166534;
 				border: 1px solid #bbf7d0;
+			}
+			.wsa-status-badge.disabled {
+				background: #f1f5f9;
+				color: #64748b;
+				border: 1px solid #e2e8f0;
+				cursor: not-allowed;
 			}
 			.wsa-status-badge .dashicons {
 				font-size: 14px;

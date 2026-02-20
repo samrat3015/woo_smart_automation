@@ -260,6 +260,23 @@ class MetaCAPI {
 			return;
 		}
 
+		// Skip automatic Purchase event for high-risk orders on the frontend (Thank You page)
+		// These should only be sent manually from the admin order list after verification
+		if ( ! is_admin() ) {
+			$order_id_raw = $order->get_id();
+			$risk_score   = (int) get_post_meta( $order_id_raw, '_wsa_risk_score', true );
+			$threshold    = (int) get_option( 'wsa_auto_action_score', 80 );
+			
+			if ( $risk_score >= $threshold && $risk_score > 0 ) {
+				return; // Block automated event for high-risk orders
+			}
+			
+			// Also skip if order is explicitly on-hold (likely due to our auto-action)
+			if ( $order->get_status() === 'on-hold' ) {
+				return;
+			}
+		}
+
 		$event_id = 'purchase_' . $order_id . '_' . time();
 		$value = (float) $order->get_total();
 		$currency = $order->get_currency();

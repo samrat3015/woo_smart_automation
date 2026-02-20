@@ -311,42 +311,285 @@
    ============================ */
 .subsubsub {
     font-family: 'Jost', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    margin: 15px 0 20px 0 !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    padding: 0 !important;
+    color: transparent !important;
+    /* Hide separator pipes */
+    list-style: none !important;
+}
+
+.subsubsub li {
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 0 !important;
+    /* Hide separator pipes */
+    display: inline-flex !important;
 }
 
 .subsubsub li a {
-    font-family: 'Jost', sans-serif !important;
-    font-weight: 500 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    padding: 6px 14px !important;
+    border-radius: 50px !important;
+    text-decoration: none !important;
     font-size: 13px !important;
+    font-weight: 600 !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    background: #ffffff !important;
+    color: #4b5563 !important;
+    border: 1px solid #e5e7eb !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
 }
 
 .subsubsub li a .count {
-    font-family: 'Jost', sans-serif !important;
-    font-weight: 600 !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    background: rgba(0, 0, 0, 0.08) !important;
+    padding: 1px 7px !important;
+    border-radius: 10px !important;
+    margin-left: 6px !important;
+    color: inherit !important;
+    transition: all 0.2s ease !important;
+}
+
+/* Hover Effects */
+.subsubsub li a:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+    border-color: #d1d5db !important;
+    background: #f9fafb !important;
+}
+
+/* Current / Active Status */
+.subsubsub li a.current {
+    background: #111827 !important;
+    color: #ffffff !important;
+    border-color: #111827 !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+}
+
+.subsubsub li a.current .count {
+    background: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Status Specific Colors */
+.subsubsub li.all a.current {
+    background: #2563eb !important;
+    color: #ffffff !important;
+    border-color: #2563eb !important;
+}
+
+.subsubsub li.wc-processing a {
+    border-color: #bfdbfe !important;
+    color: #1d4ed8 !important;
+    background: #eff6ff !important;
+}
+
+.subsubsub li.wc-processing a:hover {
+    background: #dbeafe !important;
+}
+
+.subsubsub li.wc-processing a.current {
+    background: #1d4ed8 !important;
+    color: #ffffff !important;
+    border-color: #1d4ed8 !important;
+}
+
+.subsubsub li.wc-on-hold a {
+    border-color: #fde68a !important;
+    color: #b45309 !important;
+    background: #fffbeb !important;
+}
+
+.subsubsub li.wc-on-hold a:hover {
+    background: #fef3c7 !important;
+}
+
+.subsubsub li.wc-on-hold a.current {
+    background: #b45309 !important;
+    color: #ffffff !important;
+    border-color: #b45309 !important;
+}
+
+.subsubsub li.wc-completed a {
+    border-color: #a7f3d0 !important;
+    color: #047857 !important;
+    background: #ecfdf5 !important;
+}
+
+.subsubsub li.wc-completed a:hover {
+    background: #d1fae5 !important;
+}
+
+.subsubsub li.wc-completed a.current {
+    background: #047857 !important;
+    color: #ffffff !important;
+    border-color: #047857 !important;
+}
+
+.subsubsub li.wc-cancelled a {
+    border-color: #fecaca !important;
+    color: #b91c1c !important;
+    background: #fef2f2 !important;
+}
+
+.subsubsub li.wc-cancelled a:hover {
+    background: #fee2e2 !important;
+}
+
+.subsubsub li.wc-cancelled a.current {
+    background: #b91c1c !important;
+    color: #ffffff !important;
+    border-color: #b91c1c !important;
+}
+
+.subsubsub li.wc-pending a {
+    border-color: #c7d2fe !important;
+    color: #4338ca !important;
+    background: #eef2ff !important;
+}
+
+.subsubsub li.wc-pending a:hover {
+    background: #e0e7ff !important;
+}
+
+.subsubsub li.wc-pending a.current {
+    background: #4338ca !important;
+    color: #ffffff !important;
+    border-color: #4338ca !important;
+}
+
+.subsubsub li.wc-failed a {
+    border-color: #fbcfe8 !important;
+    color: #9d174d !important;
+    background: #fdf2f8 !important;
+}
+
+.subsubsub li.wc-failed a:hover {
+    background: #fce7f3 !important;
+}
+
+.subsubsub li.wc-failed a.current {
+    background: #9d174d !important;
+    color: #ffffff !important;
+    border-color: #9d174d !important;
+}
+
+.subsubsub li.trash a {
+    border-color: #e5e7eb !important;
     color: #6b7280 !important;
+    background: #f9fafb !important;
+}
+
+.subsubsub li.trash a:hover {
+    background: #f3f4f6 !important;
+}
+
+.subsubsub li.trash a.current {
+    background: #6b7280 !important;
+    color: #ffffff !important;
+    border-color: #6b7280 !important;
 }
 
 /* ============================
-   SEARCH & FILTER AREA
+   SEARCH & FILTER AREA (Tablenav)
    ============================ */
 .post-type-shop_order .tablenav,
 .wc-orders .tablenav {
     font-family: 'Jost', sans-serif !important;
+    height: auto !important;
+    margin: 10px 0 !important;
 }
 
+/* Base Selects (Bulk actions, dates, etc.) */
+.post-type-shop_order .tablenav select,
+.wc-orders .tablenav select {
+    font-family: 'Jost', sans-serif !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    height: 32px !important;
+    line-height: 2 !important;
+    border-radius: 6px !important;
+    border: 1px solid #d1d5db !important;
+    background-color: #ffffff !important;
+    padding: 0 30px 0 12px !important;
+    color: #374151 !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+    transition: all 0.2s ease !important;
+}
+
+.post-type-shop_order .tablenav select:focus,
+.wc-orders .tablenav select:focus {
+    border-color: #6366f1 !important;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15) !important;
+}
+
+/* Action Buttons (Apply, Filter) */
+.post-type-shop_order .tablenav .button,
+.wc-orders .tablenav .button {
+    font-family: 'Jost', sans-serif !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    height: 32px !important;
+    line-height: 30px !important;
+    padding: 0 18px !important;
+    border-radius: 6px !important;
+    text-shadow: none !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    border: none !important;
+}
+
+/* Specific styling for 'Apply' button (usually follows bulk actions) */
+#doaction,
+#doaction2 {
+    background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%) !important;
+    color: #ffffff !important;
+}
+
+#doaction:hover,
+#doaction2:hover {
+    background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%) !important;
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3) !important;
+    transform: translateY(-1.5px) !important;
+}
+
+/* Specific styling for 'Filter' button */
+.post-type-shop_order .tablenav #post-query-submit,
+.wc-orders .tablenav #post-query-submit,
+.tablenav .button#search-submit {
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%) !important;
+    color: #ffffff !important;
+}
+
+.post-type-shop_order .tablenav #post-query-submit:hover,
+.wc-orders .tablenav #post-query-submit:hover,
+.tablenav .button#search-submit:hover {
+    background: linear-gradient(135deg, #818cf8 0%, #6366f1 100%) !important;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3) !important;
+    transform: translateY(-1.5px) !important;
+}
+
+/* Button Active State */
+.post-type-shop_order .tablenav .button:active,
+.wc-orders .tablenav .button:active {
+    transform: translateY(0.5px) !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Search Box */
 .post-type-shop_order .search-box input[type="search"],
 .wc-orders .search-box input[type="search"] {
     font-family: 'Jost', sans-serif !important;
     font-size: 13px !important;
+    height: 32px !important;
     border-radius: 6px !important;
     border: 1px solid #d1d5db !important;
-    padding: 4px 10px !important;
-}
-
-.post-type-shop_order .search-box input[type="search"]:focus,
-.wc-orders .search-box input[type="search"]:focus {
-    border-color: #6366f1 !important;
-    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15) !important;
-    outline: none !important;
+    padding: 4px 12px !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
 }
 
 /* ============================
@@ -355,15 +598,77 @@
 .post-type-shop_order .tablenav-pages,
 .wc-orders .tablenav-pages {
     font-family: 'Jost', sans-serif !important;
+    color: #6b7280 !important;
+    font-size: 13px !important;
 }
 
-.post-type-shop_order .tablenav-pages .pagination-links a,
-.post-type-shop_order .tablenav-pages .pagination-links .current,
-.wc-orders .tablenav-pages .pagination-links a,
-.wc-orders .tablenav-pages .pagination-links .current {
+/* Items count text */
+.tablenav .displaying-num {
+    font-family: 'Jost', sans-serif !important;
+    font-weight: 500 !important;
+    color: #374151 !important;
+    margin-right: 15px !important;
+}
+
+/* Pagination Links */
+.tablenav-pages .pagination-links a,
+.tablenav-pages .pagination-links .current {
+    font-family: 'Jost', sans-serif !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 32px !important;
+    height: 32px !important;
+    padding: 0 8px !important;
+    margin: 0 2px !important;
+    border-radius: 6px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    text-decoration: none !important;
+    transition: all 0.2s ease !important;
+    border: 1px solid #e5e7eb !important;
+    background: #ffffff !important;
+    color: #4b5563 !important;
+}
+
+.tablenav-pages .pagination-links a:hover {
+    background: #f9fafb !important;
+    border-color: #d1d5db !important;
+    color: #111827 !important;
+}
+
+/* Active Page */
+.tablenav-pages .pagination-links .current {
+    background: #6366f1 !important;
+    border-color: #6366f1 !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 4px rgba(99, 102, 241, 0.2) !important;
+}
+
+/* Disabled/Arrow Buttons */
+.tablenav-pages .pagination-links .tablenav-pages-navspan {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 32px !important;
+    height: 32px !important;
+    padding: 0 8px !important;
+    margin: 0 2px !important;
+    border-radius: 6px !important;
+    background: #f3f4f6 !important;
+    border: 1px solid #e5e7eb !important;
+    color: #9ca3af !important;
+}
+
+/* Input for page number */
+.tablenav-pages .paging-input input {
     font-family: 'Jost', sans-serif !important;
     font-weight: 600 !important;
     border-radius: 6px !important;
+    border: 1px solid #d1d5db !important;
+    padding: 3px 6px !important;
+    height: 32px !important;
+    margin: 0 4px !important;
 }
 
 /* ============================

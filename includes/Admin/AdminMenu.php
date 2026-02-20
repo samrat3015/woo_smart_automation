@@ -375,6 +375,11 @@ class AdminMenu {
 		register_setting( 'wsa_settings_group', 'wsa_order_trust_badging_enabled' );
 		register_setting( 'wsa_settings_group', 'wsa_device_block_enabled' );
 
+		// Auto Action Settings for Fake Detection
+		register_setting( 'wsa_settings_group', 'wsa_auto_action_enabled' );
+		register_setting( 'wsa_settings_group', 'wsa_auto_action_score' );
+		register_setting( 'wsa_settings_group', 'wsa_auto_action_status' );
+
 		// SMS Gateway Settings
 		register_setting( 'wsa_settings_group', 'wsa_sms_module_enabled' );
 		register_setting( 'wsa_settings_group', 'wsa_bulksmsbd_api_key' );
@@ -714,6 +719,49 @@ class AdminMenu {
 							<div class="field-input">
 								<textarea name="wsa_loyalty_msg_html" class="settings-textarea" rows="4"><?php echo esc_textarea( get_option( 'wsa_loyalty_msg_html', '<div class="wsa-loyalty-box">Welcome back! ❤️ Thanks for being a loyal customer. Enjoy your shopping!</div>' ) ); ?></textarea>
 								<p class="field-description">HTML content to show customers who have purchased before.</p>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Fake Customer Detection Settings -->
+				<div id="wsa-fake-detection-settings" class="settings-section settings-conditional <?php echo get_option('wsa_fake_detection_enabled', 'yes') !== 'yes' ? 'hidden' : ''; ?>">
+					<div class="settings-section-header">
+						<div class="settings-section-icon icon-fake">🛡️</div>
+						<div class="settings-section-title">
+							<h2>Fake Customer Detection Configuration</h2>
+							<p>Automatic actions based on risk scores</p>
+						</div>
+					</div>
+					<div class="settings-section-body">
+						<div class="settings-field-row">
+							<label class="field-label">Enable Auto-Action</label>
+							<div class="field-input">
+								<label class="toggle-switch">
+									<input type="checkbox" name="wsa_auto_action_enabled" value="yes" <?php checked( get_option( 'wsa_auto_action_enabled', 'no' ), 'yes' ); ?> />
+									<span class="toggle-slider"></span>
+								</label>
+								<p class="field-description">Automatically change order status based on risk score.</p>
+							</div>
+						</div>
+						<div class="settings-field-row">
+							<label class="field-label">Risk Score Threshold</label>
+							<div class="field-input">
+								<input type="number" name="wsa_auto_action_score" value="<?php echo esc_attr( get_option( 'wsa_auto_action_score', '80' ) ); ?>" class="settings-input" min="0" max="100" />
+								<p class="field-description">Minimum score (0-100) to trigger the action. Default is 80.</p>
+							</div>
+						</div>
+						<div class="settings-field-row">
+							<label class="field-label">Target Order Status</label>
+							<div class="field-input">
+								<select name="wsa_auto_action_status" class="settings-select">
+									<?php foreach ( $wc_statuses as $status_key => $status_label ) : ?>
+										<option value="<?php echo esc_attr( str_replace( 'wc-', '', $status_key ) ); ?>" <?php selected( get_option( 'wsa_auto_action_status', 'on-hold' ), str_replace( 'wc-', '', $status_key ) ); ?>>
+											<?php echo esc_html( $status_label ); ?>
+										</option>
+									<?php endforeach; ?>
+								</select>
+								<p class="field-description">The status to set when threshold is exceeded (e.g. On Hold or Cancelled).</p>
 							</div>
 						</div>
 					</div>
@@ -1097,6 +1145,17 @@ class AdminMenu {
 					$('#wsa-segmentation-settings').removeClass('hidden').slideDown();
 				} else {
 					$('#wsa-segmentation-settings').slideUp(function() {
+						$(this).addClass('hidden');
+					});
+				}
+			});
+
+			// Fake Detection toggle
+			$('input[name="wsa_fake_detection_enabled"]').on('change', function() {
+				if ($(this).is(':checked')) {
+					$('#wsa-fake-detection-settings').removeClass('hidden').slideDown();
+				} else {
+					$('#wsa-fake-detection-settings').slideUp(function() {
 						$(this).addClass('hidden');
 					});
 				}

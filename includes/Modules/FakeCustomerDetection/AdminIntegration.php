@@ -66,24 +66,68 @@ class AdminIntegration {
 	 * Render the risk score cell content
 	 */
 	private function render_risk_score_cell( $order_id ) {
-		$score = get_post_meta( $order_id, '_wsa_risk_score', true );
-		$summary = get_post_meta( $order_id, '_wsa_risk_summary', true );
+		$score        = get_post_meta( $order_id, '_wsa_risk_score', true );
+		$signals      = get_post_meta( $order_id, '_wsa_risk_signals', true );
+		$risk_status  = get_post_meta( $order_id, '_wsa_risk_status', true );
 		$is_duplicate = get_post_meta( $order_id, '_wsa_is_potential_duplicate', true );
+		$signals_data = $signals ? json_decode( $signals, true ) : [];
 
-		if ( $score === '' ) {
-			echo '<span class="wsa-risk-pending">—</span>';
+		// Show async pending/processing badge
+		if ( $score === '' || $risk_status === 'pending' || $risk_status === 'processing' ) {
+			$label = ( $risk_status === 'processing' ) ? '⚙️ Analyzing…' : '⏳ Queued';
+			echo '<span class="wsa-risk-pending wsa-risk-async-badge">' . esc_html( $label ) . '</span>';
 			return;
 		}
 
 		$risk_class = $this->get_risk_class( $score );
+		$risk_level = $this->get_risk_level( $score );
+
+		// Build inline tooltip content
+		$tooltip_lines = [];
+		if ( ! empty( $signals_data['negative'] ) ) {
+			foreach ( array_slice( $signals_data['negative'], 0, 3 ) as $sig ) {
+				$tooltip_lines[] = '❌ ' . $sig;
+			}
+		}
+		if ( ! empty( $signals_data['positive'] ) ) {
+			foreach ( array_slice( $signals_data['positive'], 0, 2 ) as $sig ) {
+				$tooltip_lines[] = '✅ ' . $sig;
+			}
+		}
+		$tooltip_text = implode( '\n', $tooltip_lines );
 
 		?>
 		<div class="wsa-risk-container">
-			<div class="wsa-risk-progress-bar wsa-view-details" data-order-id="<?php echo esc_attr( $order_id ); ?>" title="Click to view details">
+			<!-- Progress Bar -->
+			<div class="wsa-risk-progress-bar wsa-view-details"
+				 data-order-id="<?php echo esc_attr( $order_id ); ?>"
+				 title="Click to view full details">
 				<div class="wsa-progress-fill wsa-risk-<?php echo esc_attr( $risk_class ); ?>" style="width: <?php echo esc_attr( $score ); ?>%;">
 					<span class="wsa-score-label"><?php echo esc_html( $score ); ?></span>
 				</div>
 			</div>
+
+			<!-- Risk Level Badge -->
+			<span class="wsa-risk-level-badge wsa-level-<?php echo esc_attr( $risk_class ); ?>">
+				<?php echo esc_html( $risk_level ); ?>
+			</span>
+
+			<!-- Inline Tooltip (hover) -->
+			<?php if ( ! empty( $tooltip_lines ) ) : ?>
+				<div class="wsa-risk-tooltip">
+					<div class="wsa-tooltip-header">
+						<strong><?php echo esc_html( $risk_level ); ?></strong>
+						<span class="wsa-tooltip-score"><?php echo esc_html( $score ); ?>/100</span>
+					</div>
+					<ul class="wsa-tooltip-signals">
+						<?php foreach ( $tooltip_lines as $line ) : ?>
+							<li><?php echo esc_html( $line ); ?></li>
+						<?php endforeach; ?>
+					</ul>
+					<p class="wsa-tooltip-hint">Click bar for full details</p>
+				</div>
+			<?php endif; ?>
+
 			<?php if ( $is_duplicate ) : ?>
 				<div class="wsa-duplicate-badge" title="<?php echo esc_attr( sprintf( 'Potential duplicate of order #%d', $is_duplicate ) ); ?>">
 					<?php _e( 'DUPLICATE', 'woo-smart-automation' ); ?>
@@ -94,28 +138,36 @@ class AdminIntegration {
 	}
 
 	/**
-	 * Get CSS class based on risk score
+	 * Get CSS class based on risk score (5 levels)
 	 */
 	private function get_risk_class( $score ) {
-		if ( $score <= 30 ) {
+		if ( $score <= 20 ) {
+			return 'very-low';
+		} elseif ( $score <= 40 ) {
 			return 'low';
-		} elseif ( $score <= 70 ) {
+		} elseif ( $score <= 60 ) {
 			return 'medium';
-		} else {
+		} elseif ( $score <= 80 ) {
 			return 'high';
+		} else {
+			return 'critical';
 		}
 	}
 
 	/**
-	 * Get risk level text
+	 * Get risk level text (5 levels)
 	 */
 	private function get_risk_level( $score ) {
-		if ( $score <= 30 ) {
-			return __( 'Low Risk', 'woo-smart-automation' );
-		} elseif ( $score <= 70 ) {
-			return __( 'Medium Risk', 'woo-smart-automation' );
+		if ( $score <= 20 ) {
+			return __( 'Very Low', 'woo-smart-automation' );
+		} elseif ( $score <= 40 ) {
+			return __( 'Low', 'woo-smart-automation' );
+		} elseif ( $score <= 60 ) {
+			return __( 'Medium', 'woo-smart-automation' );
+		} elseif ( $score <= 80 ) {
+			return __( 'High', 'woo-smart-automation' );
 		} else {
-			return __( 'High Risk', 'woo-smart-automation' );
+			return __( 'Critical', 'woo-smart-automation' );
 		}
 	}
 
@@ -167,9 +219,10 @@ class AdminIntegration {
 			wp_send_json_error( [ 'message' => 'Order not found' ] );
 		}
 
-		$score = get_post_meta( $order_id, '_wsa_risk_score', true );
+		$score   = get_post_meta( $order_id, '_wsa_risk_score', true );
 		$signals = get_post_meta( $order_id, '_wsa_risk_signals', true );
 		$signals = json_decode( $signals, true );
+		$calculated_at = get_post_meta( $order_id, '_wsa_risk_calculated_at', true );
 
 		$risk_class = $this->get_risk_class( $score );
 		$risk_level = $this->get_risk_level( $score );
@@ -177,10 +230,14 @@ class AdminIntegration {
 		// Get courier history
 		$courier_history = $this->get_courier_history( $order );
 
-		$html = '<div class="wsa-risk-details-modal">';
+		$html  = '<div class="wsa-risk-details-modal">';
 		$html .= '<div class="wsa-modal-header">';
 		$html .= '<h3>Risk Analysis for Order #' . esc_html( $order->get_order_number() ) . '</h3>';
-		$html .= '<p><strong>Risk Score:</strong> <span class="wsa-modal-score-badge ' . esc_attr( $risk_class ) . '">' . esc_html( $score ) . '/100 - ' . esc_html( $risk_level ) . '</span></p>';
+		$html .= '<p><strong>Risk Score:</strong> <span class="wsa-modal-score-badge ' . esc_attr( $risk_class ) . '">' . esc_html( $score ) . '/100 — ' . esc_html( $risk_level ) . '</span>';
+		if ( $calculated_at ) {
+			$html .= ' <span class="wsa-modal-calc-time">Analyzed: ' . esc_html( human_time_diff( strtotime( $calculated_at ), current_time( 'timestamp' ) ) ) . ' ago</span>';
+		}
+		$html .= '</p>';
 		$html .= '<span class="wsa-modal-close">&times;</span>';
 		$html .= '</div>';
 
@@ -199,12 +256,17 @@ class AdminIntegration {
 		$courier_success_rate = get_post_meta( $order_id, '_wsa_courier_success_rate', true );
 		
 		if ( $courier_total !== '' && $courier_total !== false ) {
-			$badge_class = 'low';
-			if ( $courier_success_rate < 70 ) {
+			// Map courier rate to 5-level badge
+			if ( $courier_success_rate >= 90 ) {
+				$badge_class = 'very-low';
+			} elseif ( $courier_success_rate >= 70 ) {
+				$badge_class = 'low';
+			} elseif ( $courier_success_rate >= 50 ) {
 				$badge_class = 'medium';
-			}
-			if ( $courier_success_rate < 50 ) {
+			} elseif ( $courier_success_rate >= 30 ) {
 				$badge_class = 'high';
+			} else {
+				$badge_class = 'critical';
 			}
 			
 			$html .= '<h4>📊 SteadFast Courier Score</h4>';

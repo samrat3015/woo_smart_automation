@@ -340,12 +340,16 @@ class RiskScorer {
 	 * Get risk level text based on score
 	 */
 	private function get_risk_level( $score ) {
-		if ( $score <= 30 ) {
+		if ( $score <= 20 ) {
+			return 'Very Low';
+		} elseif ( $score <= 40 ) {
 			return 'Low';
-		} elseif ( $score <= 70 ) {
+		} elseif ( $score <= 60 ) {
 			return 'Medium';
-		} else {
+		} elseif ( $score <= 80 ) {
 			return 'High';
+		} else {
+			return 'Critical';
 		}
 	}
 

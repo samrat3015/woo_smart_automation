@@ -42,7 +42,7 @@
 .wsa-settings-page {
     margin: 20px 20px 20px 0;
     padding: 30px;
-    background: linear-gradient(145deg, #f8fafc 0%, #e2e8f0 100%);
+    background: linear-gradient(135deg, #f0f4ff 0%, #fdf4ff 40%, #fff7ed 100%);
     min-height: calc(100vh - 100px);
     border-radius: var(--settings-radius-lg);
     font-family: 'Jost', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
@@ -123,14 +123,37 @@
     flex-shrink: 0;
 }
 
-.settings-section-icon.icon-modules { background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); }
-.settings-section-icon.icon-meta { background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%); }
-.settings-section-icon.icon-events { background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); }
-.settings-section-icon.icon-courier { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); }
-.settings-section-icon.icon-pathao { background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); }
-.settings-section-icon.icon-steadfast { background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); }
-.settings-section-icon.icon-segment { background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%); }
-.settings-section-icon.icon-fake { background: linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%); }
+.settings-section-icon.icon-modules {
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+}
+
+.settings-section-icon.icon-meta {
+    background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+}
+
+.settings-section-icon.icon-events {
+    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+}
+
+.settings-section-icon.icon-courier {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+}
+
+.settings-section-icon.icon-pathao {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+}
+
+.settings-section-icon.icon-steadfast {
+    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+}
+
+.settings-section-icon.icon-segment {
+    background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%);
+}
+
+.settings-section-icon.icon-fake {
+    background: linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%);
+}
 
 .settings-section-title {
     flex: 1;
@@ -264,15 +287,15 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
-.toggle-switch input:checked + .toggle-slider {
+.toggle-switch input:checked+.toggle-slider {
     background: linear-gradient(135deg, var(--settings-primary) 0%, #8b5cf6 100%);
 }
 
-.toggle-switch input:checked + .toggle-slider::before {
+.toggle-switch input:checked+.toggle-slider::before {
     transform: translateX(22px);
 }
 
-.toggle-switch input:focus + .toggle-slider {
+.toggle-switch input:focus+.toggle-slider {
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
 }
 
@@ -571,21 +594,27 @@
     border-left: 4px solid var(--settings-info);
 }
 
-.settings-alert.alert-info .settings-alert-icon { color: var(--settings-info); }
+.settings-alert.alert-info .settings-alert-icon {
+    color: var(--settings-info);
+}
 
 .settings-alert.alert-warning {
     background: var(--settings-warning-light);
     border-left: 4px solid var(--settings-warning);
 }
 
-.settings-alert.alert-warning .settings-alert-icon { color: var(--settings-warning); }
+.settings-alert.alert-warning .settings-alert-icon {
+    color: var(--settings-warning);
+}
 
 .settings-alert.alert-success {
     background: var(--settings-success-light);
     border-left: 4px solid var(--settings-success);
 }
 
-.settings-alert.alert-success .settings-alert-icon { color: var(--settings-success); }
+.settings-alert.alert-success .settings-alert-icon {
+    color: var(--settings-success);
+}
 
 /* ============================
    SUBMIT BUTTON
@@ -744,6 +773,7 @@
         opacity: 0;
         transform: translateY(10px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -754,11 +784,25 @@
     animation: fadeIn 0.3s ease-out forwards;
 }
 
-.settings-section:nth-child(2) { animation-delay: 0.05s; }
-.settings-section:nth-child(3) { animation-delay: 0.1s; }
-.settings-section:nth-child(4) { animation-delay: 0.15s; }
-.settings-section:nth-child(5) { animation-delay: 0.2s; }
-.settings-section:nth-child(6) { animation-delay: 0.25s; }
+.settings-section:nth-child(2) {
+    animation-delay: 0.05s;
+}
+
+.settings-section:nth-child(3) {
+    animation-delay: 0.1s;
+}
+
+.settings-section:nth-child(4) {
+    animation-delay: 0.15s;
+}
+
+.settings-section:nth-child(5) {
+    animation-delay: 0.2s;
+}
+
+.settings-section:nth-child(6) {
+    animation-delay: 0.25s;
+}
 
 /* ============================
    BADGE STYLES
@@ -794,35 +838,160 @@
    ============================ */
 .settings-tabs {
     display: flex;
-    gap: 4px;
-    padding: 4px;
-    background: var(--settings-gray-100);
-    border-radius: var(--settings-radius-sm);
-    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 6px;
+    background: linear-gradient(135deg, #eef2ff 0%, #fdf4ff 100%);
+    border-radius: 14px;
+    margin-bottom: 28px;
+    border: 1px solid rgba(99, 102, 241, 0.1);
+    box-shadow: 0 2px 10px rgba(99, 102, 241, 0.05);
 }
 
 .settings-tab {
-    flex: 1;
-    padding: 12px 20px;
-    background: transparent;
-    border: none;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: 600;
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 10px 14px;
+    background: white;
+    border: 1.5px solid transparent;
+    border-radius: 10px;
+    font-size: 12.5px;
+    font-weight: 700;
     color: var(--settings-gray-500);
     cursor: pointer;
-    transition: var(--settings-transition);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     text-align: center;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .settings-tab:hover {
-    color: var(--settings-gray-700);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Per-tab color accents */
+.settings-tab[data-tab="modules"]:hover,
+.settings-tab[data-tab="modules"].active {
+    color: #6366f1;
+    border-color: #a5b4fc;
+    background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.2);
+}
+
+.settings-tab[data-tab="incomplete"]:hover,
+.settings-tab[data-tab="incomplete"].active {
+    color: #0891b2;
+    border-color: #67e8f9;
+    background: linear-gradient(135deg, #ecfeff, #cffafe);
+    box-shadow: 0 4px 14px rgba(8, 145, 178, 0.2);
+}
+
+.settings-tab[data-tab="meta"]:hover,
+.settings-tab[data-tab="meta"].active {
+    color: #1d4ed8;
+    border-color: #93c5fd;
+    background: linear-gradient(135deg, #eff6ff, #dbeafe);
+    box-shadow: 0 4px 14px rgba(29, 78, 216, 0.2);
+}
+
+.settings-tab[data-tab="courier"]:hover,
+.settings-tab[data-tab="courier"].active {
+    color: #c2410c;
+    border-color: #fdba74;
+    background: linear-gradient(135deg, #fff7ed, #ffedd5);
+    box-shadow: 0 4px 14px rgba(194, 65, 12, 0.2);
+}
+
+.settings-tab[data-tab="fake"]:hover,
+.settings-tab[data-tab="fake"].active {
+    color: #b45309;
+    border-color: #fcd34d;
+    background: linear-gradient(135deg, #fffbeb, #fef3c7);
+    box-shadow: 0 4px 14px rgba(180, 83, 9, 0.2);
+}
+
+.settings-tab[data-tab="sms"]:hover,
+.settings-tab[data-tab="sms"].active {
+    color: #15803d;
+    border-color: #86efac;
+    background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+    box-shadow: 0 4px 14px rgba(21, 128, 61, 0.2);
+}
+
+.settings-tab[data-tab="segmentation"]:hover,
+.settings-tab[data-tab="segmentation"].active {
+    color: #9333ea;
+    border-color: #d8b4fe;
+    background: linear-gradient(135deg, #faf5ff, #f3e8ff);
+    box-shadow: 0 4px 14px rgba(147, 51, 234, 0.2);
+}
+
+.settings-tab[data-tab="restriction"]:hover,
+.settings-tab[data-tab="restriction"].active {
+    color: #be123c;
+    border-color: #fda4af;
+    background: linear-gradient(135deg, #fff1f2, #ffe4e6);
+    box-shadow: 0 4px 14px rgba(190, 18, 60, 0.2);
 }
 
 .settings-tab.active {
-    background: white;
-    color: var(--settings-primary);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+/* Responsive tab adjustments */
+@media (max-width: 1200px) {
+    .settings-tab {
+        font-size: 12px;
+        padding: 9px 8px;
+    }
+}
+
+@media (max-width: 900px) {
+    .settings-tabs {
+        gap: 3px;
+        padding: 3px;
+    }
+
+    .settings-tab {
+        font-size: 11px;
+        padding: 8px 6px;
+        gap: 3px;
+        flex: 1 1 calc(50% - 6px);
+    }
+}
+
+@media (max-width: 600px) {
+    .settings-tab {
+        flex: 1 1 calc(50% - 6px);
+        font-size: 11px;
+        padding: 8px 6px;
+    }
+}
+
+@media (max-width: 480px) {
+    .settings-tab {
+        flex: 1 1 calc(33.33% - 6px);
+        font-size: 10px;
+        padding: 7px 4px;
+    }
+}
+
+.tab-pane {
+    display: none;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.tab-pane.active {
+    display: block;
+}
+
+.tab-content {
+    margin-top: 20px;
 }
 
 /* SMS Balance Badge */

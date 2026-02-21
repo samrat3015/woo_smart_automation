@@ -374,6 +374,9 @@ class AdminMenu {
 		register_setting( 'wsa_settings_group', 'wsa_loyalty_msg_html' );
 		register_setting( 'wsa_settings_group', 'wsa_order_trust_badging_enabled' );
 		register_setting( 'wsa_settings_group', 'wsa_device_block_enabled' );
+		register_setting( 'wsa_settings_group', 'wsa_order_restriction_enabled' );
+		register_setting( 'wsa_settings_group', 'wsa_order_restriction_limit' );
+		register_setting( 'wsa_settings_group', 'wsa_order_restriction_message' );
 
 		// Auto Action Settings for Fake Detection
 		register_setting( 'wsa_settings_group', 'wsa_auto_action_enabled' );
@@ -528,6 +531,23 @@ class AdminMenu {
 				<?php settings_fields( 'wsa_settings_group' ); ?>
 				<?php do_settings_sections( 'wsa_settings_group' ); ?>
 
+				<!-- Tab Navigation -->
+				<div class="settings-tabs">
+					<button type="button" class="settings-tab active" data-tab="modules">📦 Modules</button>
+					
+					<button type="button" class="settings-tab" data-tab="incomplete" style="<?php echo get_option( 'wsa_incomplete_order_enabled', 'yes' ) !== 'yes' ? 'display:none' : ''; ?>">📋 Incomplete Orders</button>
+					<button type="button" class="settings-tab" data-tab="meta" style="<?php echo get_option( 'wsa_meta_capi_enabled', 'yes' ) !== 'yes' ? 'display:none' : ''; ?>">📊 Meta CAPI</button>
+					<button type="button" class="settings-tab" data-tab="courier" style="<?php echo get_option( 'wsa_courier_webhook_enabled', 'yes' ) !== 'yes' ? 'display:none' : ''; ?>">🚚 Courier Tracking</button>
+					<button type="button" class="settings-tab" data-tab="fake" style="<?php echo get_option( 'wsa_fake_detection_enabled', 'yes' ) !== 'yes' ? 'display:none' : ''; ?>">🛡️ Fake Detection</button>
+					<button type="button" class="settings-tab" data-tab="sms" style="<?php echo get_option( 'wsa_sms_module_enabled', 'yes' ) !== 'yes' ? 'display:none' : ''; ?>">💬 SMS Gateway</button>
+					<button type="button" class="settings-tab" data-tab="segmentation" style="<?php echo get_option( 'wsa_segmentation_enabled', 'no' ) !== 'yes' ? 'display:none' : ''; ?>">👥 Personalization</button>
+					<button type="button" class="settings-tab" data-tab="restriction" style="<?php echo get_option( 'wsa_order_restriction_enabled', 'no' ) !== 'yes' ? 'display:none' : ''; ?>">⏳ Order Restriction</button>
+				</div>
+
+				<div class="tab-content">
+					<!-- Modules Tab -->
+					<div id="tab-modules" class="tab-pane active">
+
 				<!-- Modules Section -->
 				<div class="settings-section">
 					<div class="settings-section-header">
@@ -621,7 +641,7 @@ class AdminMenu {
 									<div class="module-header">
 										<h3 class="module-name">Fake Customer Detection</h3>
 										<label class="toggle-switch">
-											<input type="checkbox" name="wsa_fake_detection_enabled" value="yes" <?php checked( get_option( 'wsa_fake_detection_enabled', 'yes' ), 'yes' ); ?> />
+											<input type="checkbox" name="wsa_fake_detection_enabled" value="yes" id="wsa_fake_detection_toggle" <?php checked( get_option( 'wsa_fake_detection_enabled', 'yes' ), 'yes' ); ?> />
 											<span class="toggle-slider"></span>
 										</label>
 									</div>
@@ -673,19 +693,30 @@ class AdminMenu {
 									<p class="module-description">Manually block suspicious customers by IP, Phone or Email.</p>
 								</div>
 							</div>
+
+							<!-- Order Frequency Restriction -->
+							<div class="module-card <?php echo \get_option( 'wsa_order_restriction_enabled', 'no' ) === 'yes' ? 'active' : ''; ?>">
+								<div class="module-icon">⏳</div>
+								<div class="module-content">
+									<div class="module-header">
+										<h3 class="module-name">Order Frequency Restriction</h3>
+										<label class="toggle-switch">
+											<input type="checkbox" name="wsa_order_restriction_enabled" value="yes" id="wsa_order_restriction_toggle" <?php \checked( \get_option( 'wsa_order_restriction_enabled', 'no' ), 'yes' ); ?> />
+											<span class="toggle-slider"></span>
+										</label>
+									</div>
+									<p class="module-description">Prevent same customer from ordering multiple times within a set time limit.</p>
+								</div>
+							</div>
 						</div>
 					</div>
 				</div>
+				</div> <!-- End #tab-modules -->
 
+				<!-- Incomplete Order Settings Tab -->
+				<div id="tab-incomplete" class="tab-pane">
 				<!-- Incomplete Order Settings -->
 				<div id="wsa-incomplete-order-settings" class="settings-section settings-conditional <?php echo get_option('wsa_incomplete_order_enabled', 'yes') !== 'yes' ? 'hidden' : ''; ?>">
-					<div class="settings-section-header">
-						<div class="settings-section-icon icon-incomplete">📋</div>
-						<div class="settings-section-title">
-							<h2>Incomplete Order Configuration</h2>
-							<p>Manage data retention and capture settings</p>
-						</div>
-					</div>
 					<div class="settings-section-body">
 						<div class="settings-field-row">
 							<label class="field-label">Auto-delete Orders After (Days)</label>
@@ -696,16 +727,12 @@ class AdminMenu {
 						</div>
 					</div>
 				</div>
+				</div> <!-- End #tab-incomplete -->
 
+				<!-- Personalization Tab -->
+				<div id="tab-segmentation" class="tab-pane">
 				<!-- Customer Segmentation Settings -->
 				<div id="wsa-segmentation-settings" class="settings-section settings-conditional <?php echo get_option('wsa_segmentation_enabled', 'no') !== 'yes' ? 'hidden' : ''; ?>">
-					<div class="settings-section-header">
-						<div class="settings-section-icon icon-segment">👥</div>
-						<div class="settings-section-title">
-							<h2>Personalization Content</h2>
-							<p>Customize messages for different customer segments</p>
-						</div>
-					</div>
 					<div class="settings-section-body">
 						<div class="settings-field-row">
 							<label class="field-label">First-Time Buyer Content</label>
@@ -723,16 +750,35 @@ class AdminMenu {
 						</div>
 					</div>
 				</div>
+				</div> <!-- End #tab-segmentation -->
 
-				<!-- Fake Customer Detection Settings -->
-				<div id="wsa-fake-detection-settings" class="settings-section settings-conditional <?php echo get_option('wsa_fake_detection_enabled', 'yes') !== 'yes' ? 'hidden' : ''; ?>">
-					<div class="settings-section-header">
-						<div class="settings-section-icon icon-fake">🛡️</div>
-						<div class="settings-section-title">
-							<h2>Fake Customer Detection Configuration</h2>
-							<p>Automatic actions based on risk scores</p>
+				<!-- Order Restriction Tab -->
+				<div id="tab-restriction" class="tab-pane">
+				<!-- Order Restriction Settings -->
+				<div id="wsa-order-restriction-settings" class="settings-section settings-conditional <?php echo get_option('wsa_order_restriction_enabled', 'no') !== 'yes' ? 'hidden' : ''; ?>">
+					<div class="settings-section-body">
+						<div class="settings-field-row">
+							<label class="field-label">Time Limit (Minutes)</label>
+							<div class="field-input">
+								<input type="number" name="wsa_order_restriction_limit" value="<?php echo esc_attr( get_option( 'wsa_order_restriction_limit', '30' ) ); ?>" class="settings-input" min="1" placeholder="e.g. 30" />
+								<p class="field-description">Minimum time required between two orders from the same customer. Default: 30 minutes.</p>
+							</div>
+						</div>
+						<div class="settings-field-row">
+							<label class="field-label">Restriction Message</label>
+							<div class="field-input">
+								<textarea name="wsa_order_restriction_message" class="settings-textarea" rows="4" placeholder="You have already placed an order recently. Please wait {time} minutes."><?php echo esc_textarea( get_option( 'wsa_order_restriction_message', '' ) ); ?></textarea>
+								<p class="field-description">Message to show at checkout when restricted. Use <code>{time}</code> to show remaining minutes. Leave empty for default message.</p>
+							</div>
 						</div>
 					</div>
+				</div>
+				</div> <!-- End #tab-restriction -->
+
+				<!-- Fake Detection Tab -->
+				<div id="tab-fake" class="tab-pane">
+				<!-- Fake Customer Detection Settings -->
+				<div id="wsa-fake-detection-settings" class="settings-section settings-conditional <?php echo get_option('wsa_fake_detection_enabled', 'yes') !== 'yes' ? 'hidden' : ''; ?>">
 					<div class="settings-section-body">
 						<div class="settings-field-row">
 							<label class="field-label">Enable Auto-Action</label>
@@ -766,16 +812,12 @@ class AdminMenu {
 						</div>
 					</div>
 				</div>
+				</div> <!-- End #tab-fake -->
 
+				<!-- Meta CAPI Tab -->
+				<div id="tab-meta" class="tab-pane">
 				<!-- Meta CAPI Settings -->
 				<div id="wsa-meta-settings" class="settings-section settings-conditional <?php echo get_option('wsa_meta_capi_enabled', 'yes') !== 'yes' ? 'hidden' : ''; ?>">
-					<div class="settings-section-header">
-						<div class="settings-section-icon icon-meta">📊</div>
-						<div class="settings-section-title">
-							<h2>Meta CAPI Configuration</h2>
-							<p>Connect your Meta Pixel for server-side tracking</p>
-						</div>
-					</div>
 					<div class="settings-section-body">
 						<div class="settings-field-row">
 							<label class="field-label">Meta Pixel ID <span class="required">*</span></label>
@@ -861,16 +903,12 @@ class AdminMenu {
 						</div>
 					</div>
 				</div>
+				</div> <!-- End #tab-meta -->
 
+				<!-- Courier Tracking Tab -->
+				<div id="tab-courier" class="tab-pane">
 				<!-- Courier Webhook Settings -->
 				<div id="wsa-courier-settings" class="settings-section settings-conditional <?php echo get_option('wsa_courier_webhook_enabled', 'yes') !== 'yes' ? 'hidden' : ''; ?>">
-					<div class="settings-section-header">
-						<div class="settings-section-icon icon-courier">🚚</div>
-						<div class="settings-section-title">
-							<h2>Courier Webhook Endpoints</h2>
-							<p>Use these URLs in your courier dashboard</p>
-						</div>
-					</div>
 					<div class="settings-section-body">
 						<div class="settings-field-row">
 							<label class="field-label">Pathao Webhook URL</label>
@@ -994,20 +1032,12 @@ class AdminMenu {
 						</table>
 					</div>
 				</div>
+				</div> <!-- End #tab-courier -->
 
+				<!-- SMS Gateway Tab -->
+				<div id="tab-sms" class="tab-pane">
 				<!-- SMS Notification Settings -->
 				<div id="wsa-sms-settings" class="settings-section settings-conditional <?php echo get_option('wsa_sms_module_enabled', 'yes') !== 'yes' ? 'hidden' : ''; ?>">
-					<div class="settings-section-header">
-						<div class="settings-section-icon icon-sms">💬</div>
-						<div class="settings-section-title">
-							<h2>SMS Notification Configuration</h2>
-							<p>Manage BulkSMSBD integration and SMS settings</p>
-						</div>
-						<div class="sms-balance-badge">
-							<span class="balance-label">Current Balance:</span>
-							<span class="balance-amount"><?php echo esc_html( $sms_balance ); ?></span>
-						</div>
-					</div>
 					<div class="settings-section-body">
 						<div class="settings-field-row">
 							<label class="field-label">BulkSMSBD API Key <span class="required">*</span></label>
@@ -1083,6 +1113,8 @@ class AdminMenu {
 						</div>
 					</div>
 				</div>
+				</div> <!-- End #tab-sms -->
+				</div> <!-- End .tab-content -->
 
 				<!-- Submit Button -->
 				<div class="settings-submit-area">
@@ -1161,6 +1193,17 @@ class AdminMenu {
 				}
 			});
 
+			// Order Restriction toggle
+			$('#wsa_order_restriction_toggle').on('change', function() {
+				if ($(this).is(':checked')) {
+					$('#wsa-order-restriction-settings').removeClass('hidden').slideDown();
+				} else {
+					$('#wsa-order-restriction-settings').slideUp(function() {
+						$(this).addClass('hidden');
+					});
+				}
+			});
+
 			// SMS toggle
 			$('#wsa_sms_toggle').on('change', function() {
 				if ($(this).is(':checked')) {
@@ -1212,6 +1255,52 @@ class AdminMenu {
 			// Initial load
 			updateSMSCounter('#wsa_sms_template', '#sms-char-count', '#sms-parts-count');
 			updateSMSCounter('#wsa_sms_abandoned_template', '#sms-abandoned-char-count', '#sms-abandoned-parts-count');
+
+			// Tab Switching Logic
+			$('.settings-tab').on('click', function() {
+				var target = $(this).data('tab');
+				
+				// Update headers/tabs
+				$('.settings-tab').removeClass('active');
+				$(this).addClass('active');
+				
+				// Show/Hide panes
+				$('.tab-pane').removeClass('active').hide();
+				$('#tab-' + target).addClass('active').fadeIn(200);
+				
+				// Store active tab if needed (optional)
+				localStorage.setItem('wsa_active_tab', target);
+			});
+
+			// Real-time tab visibility toggle
+			function toggleTabVisibility(checkboxId, tabDataValue) {
+				$(checkboxId).on('change', function() {
+					var $tab = $('.settings-tab[data-tab="' + tabDataValue + '"]');
+					if ($(this).is(':checked')) {
+						if ($tab.length === 0) {
+							// If tab doesn't exist (because PHP didn't render it), we might need to refresh or handle it.
+							// But for now, let's assume we want to hide it if it exists.
+						}
+						$tab.fadeIn();
+					} else {
+						$tab.fadeOut();
+					}
+				});
+			}
+
+			toggleTabVisibility('#wsa_incomplete_order_toggle', 'incomplete');
+			toggleTabVisibility('#wsa_meta_capi_toggle', 'meta');
+			toggleTabVisibility('#wsa_courier_toggle', 'courier');
+			toggleTabVisibility('#wsa_fake_detection_toggle', 'fake');
+			toggleTabVisibility('#wsa_sms_toggle', 'sms');
+			toggleTabVisibility('#wsa_segmentation_toggle', 'segmentation');
+			toggleTabVisibility('#wsa_order_restriction_toggle', 'restriction');
+
+			// Restore active tab
+			var activeTab = localStorage.getItem('wsa_active_tab');
+			if (activeTab && $('.settings-tab[data-tab="' + activeTab + '"]').length) {
+				$('.settings-tab[data-tab="' + activeTab + '"]').trigger('click');
+			}
 		});
 		</script>
 		<?php

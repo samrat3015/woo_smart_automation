@@ -207,6 +207,14 @@ class Plugin {
 			}
 		}
 
+		// 9. Order Restriction Module
+		$order_restriction_enabled = get_option( 'wsa_order_restriction_enabled', 'no' );
+		if ( 'yes' === $order_restriction_enabled ) {
+			require_once WSA_PATH . 'includes/Modules/OrderRestriction/OrderRestriction.php';
+			$order_restriction = new \WooSmartAutomation\Modules\OrderRestriction\OrderRestriction();
+			$order_restriction->init();
+		}
+
 		// Future: License Module
 	}
 

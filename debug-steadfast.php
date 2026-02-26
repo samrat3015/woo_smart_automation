@@ -18,7 +18,7 @@ if (!current_user_can('manage_options')) {
 <!DOCTYPE html>
 <html>
 <head>
-    <title>SteadFast Debug - Woo Smart Automation</title>
+    <title>SteadFast Debug - Woo Smart Shield</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
         .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }

@@ -7,8 +7,8 @@ class AdminMenu {
 
 	public function add_plugin_admin_menu() {
 		$hook = add_menu_page(
-			'Woo Smart Automation',
-			'Woo Smart Auto',
+			'Woo Smart Shield',
+			'Woo Smart Shield',
 			'manage_options',
 			'woo-smart-automation',
 			[ $this, 'display_license_page' ],
@@ -122,7 +122,7 @@ class AdminMenu {
 		?>
 		<div class="wrap wsa-license-wrap">
 			<h1>🔑 License Activation</h1>
-			<p>Activate your license to unlock all premium features of Woo Smart Automation.</p>
+			<p>Activate your license to unlock all premium features of Woo Smart Shield.</p>
 
 			<div class="wsa-license-container">
 				<?php if ( $is_active && $license_data ) : ?>
@@ -176,14 +176,14 @@ class AdminMenu {
 							<?php endif; ?>
 						</div>
 
-						<div class="wsa-license-actions">
+						<!-- <div class="wsa-license-actions">
 							<button type="button" id="wsa-deactivate-license" class="button button-secondary">
 								<span class="dashicons dashicons-no"></span> Deactivate License
 							</button>
 							<button type="button" id="wsa-refresh-license" class="button button-primary">
 								<span class="dashicons dashicons-update"></span> Refresh License
 							</button>
-						</div>
+						</div> -->
 					</div>
 
 				<?php else : ?>
@@ -524,7 +524,7 @@ class AdminMenu {
 			<!-- Header -->
 			<div class="settings-header">
 				<h1>⚙️ Settings</h1>
-				<p>Configure your Woo Smart Automation modules and integrations.</p>
+				<p>Configure your Woo Smart Shield modules and integrations.</p>
 			</div>
 
 			<form method="post" action="options.php" class="settings-form">
@@ -1316,7 +1316,7 @@ class AdminMenu {
 				<div class="wsa-blocked-icon">🔒</div>
 				<h1>License Required</h1>
 				<p>This feature requires an active license to access.</p>
-				<p>Please activate your license to unlock all premium features of Woo Smart Automation.</p>
+				<p>Please activate your license to unlock all premium features of Woo Smart Shield.</p>
 				<a href="<?php echo admin_url( 'admin.php?page=woo-smart-automation' ); ?>" class="button button-primary button-hero">
 					<span class="dashicons dashicons-admin-network"></span> Activate License
 				</a>

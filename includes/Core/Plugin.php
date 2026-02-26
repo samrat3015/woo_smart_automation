@@ -58,7 +58,7 @@ class Plugin {
 	public function woocommerce_missing_notice() {
 		?>
 		<div class="error">
-			<p><?php _e( 'Woo Smart Automation requires WooCommerce to be installed and active.', 'woo-smart-automation' ); ?></p>
+			<p><?php _e( 'Woo Smart Shield requires WooCommerce to be installed and active.', 'woo-smart-automation' ); ?></p>
 		</div>
 		<?php
 	}
@@ -76,7 +76,7 @@ class Plugin {
 		?>
 		<div class="notice notice-warning is-dismissible">
 			<p>
-				<strong>Woo Smart Automation:</strong> 
+				<strong>Woo Smart Shield:</strong> 
 				<?php _e( 'Your license is not activated. All features are currently disabled.', 'woo-smart-automation' ); ?>
 				<a href="<?php echo admin_url( 'admin.php?page=woo-smart-automation' ); ?>"><?php _e( 'Activate License', 'woo-smart-automation' ); ?></a>
 			</p>

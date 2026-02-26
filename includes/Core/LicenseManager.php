@@ -15,7 +15,7 @@ class LicenseManager {
     /**
      * Product slug for license validation
      */
-    const PRODUCT_SLUG = 'woo-smart-automation';
+    const PRODUCT_SLUG = 'woo-smart-shield';
 
     /**
      * Option keys for storing license data

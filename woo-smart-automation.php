@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name: Woo Smart Automation
+ * Plugin Name: Woo Smart Shield
  * Description: All-in-one automation for WooCommerce: Incomplete Order Capture, Courier Webhooks, and License Management.
  * Version: 1.0.3
  * Author: Hasibur rahman samrat

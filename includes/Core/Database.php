@@ -8,6 +8,7 @@ class Database {
 		self::migrate_incomplete_orders_table();
 		self::create_courier_score_table();
 		self::create_device_blocks_table();
+		self::create_prompt_templates_table();
 		add_option( 'wsa_db_version', WSA_VERSION );
 		
 		if ( ! wp_next_scheduled( 'wsa_cleanup_old_orders' ) ) {
@@ -19,6 +20,9 @@ class Database {
 		}
 
 		flush_rewrite_rules();
+		
+		// Seed built-in prompt templates
+		self::seed_builtin_prompt_templates();
 	}
 
 	public static function deactivate() {
@@ -32,7 +36,11 @@ class Database {
 			self::create_incomplete_orders_table();
 			self::create_courier_score_table();
 			self::create_device_blocks_table();
+			self::create_prompt_templates_table();
 			update_option( 'wsa_db_version', WSA_VERSION );
+			
+			// Seed built-in prompt templates
+			self::seed_builtin_prompt_templates();
 		}
 
 		// Ensure admin_note column exists (Migration Support)
@@ -154,5 +162,49 @@ class Database {
 			"DELETE FROM $table_name WHERE created_at < DATE_SUB(NOW(), INTERVAL %d DAY)",
 			$retention_days
 		) );
+	}
+
+	/**
+	 * Create prompt templates table for AI Funnel Builder
+	 */
+	private static function create_prompt_templates_table() {
+		global $wpdb;
+
+		$table_name = $wpdb->prefix . 'wsa_prompt_templates';
+		$charset_collate = $wpdb->get_charset_collate();
+
+		$sql = "CREATE TABLE $table_name (
+			id bigint(20) NOT NULL AUTO_INCREMENT,
+			name varchar(255) NOT NULL,
+			slug varchar(255) NOT NULL,
+			description text DEFAULT NULL,
+			prompt_body longtext NOT NULL,
+			is_builtin tinyint(1) DEFAULT 0,
+			created_by bigint(20) DEFAULT NULL,
+			created_at datetime DEFAULT CURRENT_TIMESTAMP,
+			updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			PRIMARY KEY  (id),
+			UNIQUE KEY slug (slug),
+			KEY is_builtin (is_builtin)
+		) $charset_collate;";
+
+		require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
+		dbDelta( $sql );
+	}
+
+	/**
+	 * Seed built-in prompt templates
+	 */
+	private static function seed_builtin_prompt_templates() {
+		// Only seed if the AI Funnel Builder module files exist
+		$template_library_file = WSA_PATH . 'includes/Modules/AIFunnelBuilder/PromptTemplateLibrary.php';
+		
+		if ( file_exists( $template_library_file ) ) {
+			require_once $template_library_file;
+			
+			if ( class_exists( 'WooSmartAutomation\Modules\AIFunnelBuilder\PromptTemplateLibrary' ) ) {
+				\WooSmartAutomation\Modules\AIFunnelBuilder\PromptTemplateLibrary::seed_builtin_templates();
+			}
+		}
 	}
 }

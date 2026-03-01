@@ -62,6 +62,30 @@ class AdminMenu {
 			[ $this, 'display_docs_page' ]
 		);
 
+		// AI Funnel Builder submenu (only if enabled)
+		if ( get_option( 'wsa_ai_funnel_enabled', 'no' ) === 'yes' ) {
+			$funnel_builder_hook = add_submenu_page(
+				'woo-smart-automation',
+				'AI Funnel Builder',
+				'🚀 AI Funnels',
+				'manage_options',
+				'wsa-funnel-builder',
+				[ $this, 'display_funnel_builder_page' ]
+			);
+			add_action( 'admin_print_styles-' . $funnel_builder_hook, [ $this, 'enqueue_funnel_builder_assets' ] );
+
+			// AI Settings submenu
+			$ai_settings_hook = add_submenu_page(
+				'woo-smart-automation',
+				'AI Settings',
+				'⚙️ AI Settings',
+				'manage_options',
+				'wsa-ai-settings',
+				[ $this, 'display_ai_settings_page' ]
+			);
+			add_action( 'admin_print_styles-' . $ai_settings_hook, [ $this, 'enqueue_funnel_builder_assets' ] );
+		}
+
 		// Enqueue assets for our pages
 		add_action( 'admin_print_styles-' . $hook, [ $this, 'enqueue_admin_assets' ] );
 		add_action( 'admin_print_styles-' . $incomplete_orders_hook, [ $this, 'enqueue_incomplete_orders_assets' ] );
@@ -377,6 +401,9 @@ class AdminMenu {
 		register_setting( 'wsa_settings_group', 'wsa_order_restriction_enabled' );
 		register_setting( 'wsa_settings_group', 'wsa_order_restriction_limit' );
 		register_setting( 'wsa_settings_group', 'wsa_order_restriction_message' );
+
+		// AI Funnel Builder Settings
+		register_setting( 'wsa_settings_group', 'wsa_ai_funnel_enabled' );
 
 		// Auto Action Settings for Fake Detection
 		register_setting( 'wsa_settings_group', 'wsa_auto_action_enabled' );
@@ -706,6 +733,21 @@ class AdminMenu {
 										</label>
 									</div>
 									<p class="module-description">Prevent same customer from ordering multiple times within a set time limit.</p>
+								</div>
+							</div>
+
+							<!-- AI Funnel Builder -->
+							<div class="module-card <?php echo \get_option( 'wsa_ai_funnel_enabled', 'no' ) === 'yes' ? 'active' : ''; ?>">
+								<div class="module-icon">🚀</div>
+								<div class="module-content">
+									<div class="module-header">
+										<h3 class="module-name">AI Funnel Builder</h3>
+										<label class="toggle-switch">
+											<input type="checkbox" name="wsa_ai_funnel_enabled" value="yes" id="wsa_ai_funnel_toggle" <?php \checked( \get_option( 'wsa_ai_funnel_enabled', 'no' ), 'yes' ); ?> />
+											<span class="toggle-slider"></span>
+										</label>
+									</div>
+									<p class="module-description">Build AI-powered landing pages & sales funnels with multiple AI providers.</p>
 								</div>
 							</div>
 						</div>
@@ -1774,6 +1816,131 @@ class AdminMenu {
 
 		require_once WSA_PATH . 'includes/Modules/FakeCustomerDetection/DeviceBlock.php';
 		\WooSmartAutomation\Modules\FakeCustomerDetection\DeviceBlock::render_blocked_devices_page();
+	}
+
+	/**
+	 * Display AI Funnel Builder Page
+	 */
+	public function display_funnel_builder_page() {
+		$is_licensed = LicenseManager::is_license_active();
+		
+		if ( ! $is_licensed ) {
+			$this->display_license_required_notice();
+			return;
+		}
+
+		// Load the AI Funnel Builder module dependencies
+		$base_path = WSA_PATH . 'includes/Modules/AIFunnelBuilder/';
+		
+		// Core classes
+		if ( ! class_exists( '\WooSmartAutomation\Modules\AIFunnelBuilder\AISettingsManager' ) ) {
+			require_once $base_path . 'AISettingsManager.php';
+		}
+		if ( ! class_exists( '\WooSmartAutomation\Modules\AIFunnelBuilder\FunnelManager' ) ) {
+			require_once $base_path . 'FunnelManager.php';
+		}
+		if ( ! class_exists( '\WooSmartAutomation\Modules\AIFunnelBuilder\LandingPageBuilder' ) ) {
+			require_once $base_path . 'LandingPageBuilder.php';
+		}
+		if ( ! class_exists( '\WooSmartAutomation\Modules\AIFunnelBuilder\PromptTemplateLibrary' ) ) {
+			require_once $base_path . 'PromptTemplateLibrary.php';
+		}
+		if ( ! class_exists( '\WooSmartAutomation\Modules\AIFunnelBuilder\AdminIntegration' ) ) {
+			require_once $base_path . 'AdminIntegration.php';
+		}
+
+		$admin_integration = new \WooSmartAutomation\Modules\AIFunnelBuilder\AdminIntegration();
+		$admin_integration->render_main_page();
+	}
+
+	/**
+	 * Display AI Settings Page
+	 */
+	public function display_ai_settings_page() {
+		$is_licensed = LicenseManager::is_license_active();
+		
+		if ( ! $is_licensed ) {
+			$this->display_license_required_notice();
+			return;
+		}
+
+		// Load the AI Funnel Builder module dependencies
+		$base_path = WSA_PATH . 'includes/Modules/AIFunnelBuilder/';
+		
+		if ( ! class_exists( '\WooSmartAutomation\Modules\AIFunnelBuilder\AISettingsManager' ) ) {
+			require_once $base_path . 'AISettingsManager.php';
+		}
+		if ( ! class_exists( '\WooSmartAutomation\Modules\AIFunnelBuilder\FunnelManager' ) ) {
+			require_once $base_path . 'FunnelManager.php';
+		}
+		if ( ! class_exists( '\WooSmartAutomation\Modules\AIFunnelBuilder\LandingPageBuilder' ) ) {
+			require_once $base_path . 'LandingPageBuilder.php';
+		}
+		if ( ! class_exists( '\WooSmartAutomation\Modules\AIFunnelBuilder\AdminIntegration' ) ) {
+			require_once $base_path . 'AdminIntegration.php';
+		}
+
+		$admin_integration = new \WooSmartAutomation\Modules\AIFunnelBuilder\AdminIntegration();
+		$admin_integration->render_ai_settings_page();
+	}
+
+	/**
+	 * Enqueue Funnel Builder Assets
+	 */
+	public function enqueue_funnel_builder_assets() {
+		\wp_enqueue_style( 'wsa-google-fonts', 'https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600;700;800&display=swap', [], WSA_VERSION );
+		\wp_enqueue_style( 'wsa-admin-css', WSA_URL . 'assets/css/admin.css', ['wsa-google-fonts'], WSA_VERSION );
+		\wp_enqueue_style( 'wsa-funnel-builder-css', WSA_URL . 'assets/css/funnel-builder.css', ['wsa-admin-css'], WSA_VERSION );
+		\wp_enqueue_media();
+		\wp_enqueue_script( 'wsa-funnel-builder-js', WSA_URL . 'assets/js/funnel-builder.js', ['jquery'], WSA_VERSION, true );
+		\wp_localize_script( 'wsa-funnel-builder-js', 'wsaFunnelBuilder', [
+			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+			'nonce' => wp_create_nonce( 'wsa_funnel_builder' ),
+			'models' => $this->get_ai_models_for_js(),
+			'strings' => [
+				'testing' => __( 'Testing...', 'woo-smart-automation' ),
+				'test' => __( 'Test Connection', 'woo-smart-automation' ),
+				'selectProduct' => __( 'Please select a product', 'woo-smart-automation' ),
+				'generating' => __( 'Generating...', 'woo-smart-automation' ),
+				'generate' => __( 'Generate with AI', 'woo-smart-automation' ),
+				'enterTitle' => __( 'Please enter a title', 'woo-smart-automation' ),
+				'generateFirst' => __( 'Please generate a landing page first', 'woo-smart-automation' ),
+				'published' => __( 'Published!', 'woo-smart-automation' ),
+				'viewPage' => __( 'View page?', 'woo-smart-automation' ),
+				'confirmDelete' => __( 'Are you sure you want to delete this funnel?', 'woo-smart-automation' ),
+				'confirmDuplicate' => __( 'Duplicate this funnel?', 'woo-smart-automation' ),
+				'uploadImage' => __( 'Upload Image', 'woo-smart-automation' ),
+				'removeImage' => __( 'Remove', 'woo-smart-automation' ),
+			],
+			'i18n' => [
+				'uploadImage' => __( 'Upload Image', 'woo-smart-automation' ),
+				'generating'  => __( 'Generating...', 'woo-smart-automation' ),
+			],
+		] );
+	}
+
+	/**
+	 * Get AI models formatted for JavaScript localization
+	 * 
+	 * @return array Models keyed by provider with model_id => name pairs
+	 */
+	private function get_ai_models_for_js() {
+		$base_path = WSA_PATH . 'includes/Modules/AIFunnelBuilder/';
+		if ( ! class_exists( '\WooSmartAutomation\Modules\AIFunnelBuilder\AISettingsManager' ) ) {
+			require_once $base_path . 'AISettingsManager.php';
+		}
+
+		$all_models = \WooSmartAutomation\Modules\AIFunnelBuilder\AISettingsManager::MODELS;
+		$js_models = [];
+
+		foreach ( $all_models as $provider => $provider_models ) {
+			$js_models[ $provider ] = [];
+			foreach ( $provider_models as $model_key => $model_data ) {
+				$js_models[ $provider ][ $model_key ] = is_array( $model_data ) ? ( $model_data['name'] ?? $model_key ) : $model_data;
+			}
+		}
+
+		return $js_models;
 	}
 
 	public function display_docs_page() {

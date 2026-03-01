@@ -215,6 +215,14 @@ class Plugin {
 			$order_restriction->init();
 		}
 
+		// 10. AI Funnel Builder Module
+		$ai_funnel_enabled = get_option( 'wsa_ai_funnel_enabled', 'no' );
+		if ( 'yes' === $ai_funnel_enabled ) {
+			require_once WSA_PATH . 'includes/Modules/AIFunnelBuilder/AIFunnelBuilder.php';
+			$ai_funnel = \WooSmartAutomation\Modules\AIFunnelBuilder\AIFunnelBuilder::get_instance();
+			$ai_funnel->init();
+		}
+
 		// Future: License Module
 	}
 

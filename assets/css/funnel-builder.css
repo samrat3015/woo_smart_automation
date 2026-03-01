@@ -1,0 +1,803 @@
+/**
+ * AI Funnel Builder Admin Styles
+ *
+ * @package WooSmartAutomation
+ * @since 1.1.0
+ */
+
+/* ==========================================================================
+   Common Components
+   ========================================================================== */
+
+.wsa-funnel-page {
+	margin-right: 20px;
+}
+
+/* Cards */
+.wsa-card {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	padding: 20px;
+	margin-bottom: 20px;
+	box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+.wsa-card-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding-bottom: 15px;
+	margin-bottom: 20px;
+	border-bottom: 1px solid #eee;
+}
+
+.wsa-card-title {
+	margin: 0;
+	font-size: 18px;
+	font-weight: 600;
+}
+
+/* Buttons */
+.wsa-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 8px 16px;
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	font-size: 13px;
+	font-weight: 500;
+	text-decoration: none;
+	transition: all 0.2s ease;
+}
+
+.wsa-btn-primary {
+	background: #2271b1;
+	color: #fff;
+}
+
+.wsa-btn-primary:hover {
+	background: #135e96;
+	color: #fff;
+}
+
+.wsa-btn-secondary {
+	background: #f0f0f1;
+	color: #1d2327;
+	border: 1px solid #c3c4c7;
+}
+
+.wsa-btn-secondary:hover {
+	background: #e0e0e1;
+}
+
+.wsa-btn-success {
+	background: #00a32a;
+	color: #fff;
+}
+
+.wsa-btn-success:hover {
+	background: #008a20;
+	color: #fff;
+}
+
+.wsa-btn-danger {
+	background: #d63638;
+	color: #fff;
+}
+
+.wsa-btn-danger:hover {
+	background: #b32d2e;
+	color: #fff;
+}
+
+.wsa-btn .dashicons {
+	font-size: 16px;
+	width: 16px;
+	height: 16px;
+}
+
+/* Forms */
+.wsa-field-row {
+	margin-bottom: 20px;
+}
+
+.wsa-field-row:last-child {
+	margin-bottom: 0;
+}
+
+.wsa-field-row label {
+	display: block;
+	font-weight: 600;
+	margin-bottom: 8px;
+}
+
+.wsa-field-row .required {
+	color: #dc3545;
+}
+
+.wsa-field-row input[type="text"],
+.wsa-field-row input[type="email"],
+.wsa-field-row input[type="url"],
+.wsa-field-row input[type="password"],
+.wsa-field-row textarea,
+.wsa-field-row select {
+	width: 100%;
+	max-width: 100%;
+	padding: 8px 12px;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	font-size: 14px;
+}
+
+.wsa-field-row input:focus,
+.wsa-field-row textarea:focus,
+.wsa-field-row select:focus {
+	border-color: #2271b1;
+	outline: none;
+	box-shadow: 0 0 0 1px #2271b1;
+}
+
+.wsa-field-row .description {
+	margin-top: 8px;
+	color: #646970;
+	font-size: 13px;
+}
+
+/* Grid */
+.wsa-grid {
+	display: grid;
+	gap: 20px;
+}
+
+.wsa-grid-2 {
+	grid-template-columns: repeat(2, 1fr);
+}
+
+.wsa-grid-3 {
+	grid-template-columns: repeat(3, 1fr);
+}
+
+.wsa-grid-4 {
+	grid-template-columns: repeat(4, 1fr);
+}
+
+/* ==========================================================================
+   AI Settings Page
+   ========================================================================== */
+
+.wsa-ai-settings-page {
+	max-width: 1200px;
+}
+
+.wsa-provider-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+	gap: 20px;
+	margin-bottom: 30px;
+}
+
+.wsa-provider-card {
+	position: relative;
+	padding: 20px;
+	background: #fff;
+	border: 2px solid #ddd;
+	border-radius: 8px;
+	cursor: pointer;
+	transition: all 0.2s;
+}
+
+.wsa-provider-card:hover {
+	border-color: #2271b1;
+}
+
+.wsa-provider-card.selected {
+	border-color: #2271b1;
+	background: #f0f6fc;
+}
+
+.wsa-provider-card input[type="radio"] {
+	position: absolute;
+	top: 15px;
+	right: 15px;
+}
+
+.wsa-provider-logo {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-bottom: 10px;
+}
+
+.wsa-provider-logo img {
+	width: 40px;
+	height: 40px;
+	object-fit: contain;
+}
+
+.wsa-provider-logo h4 {
+	margin: 0;
+	font-size: 16px;
+}
+
+.wsa-provider-description {
+	color: #646970;
+	font-size: 13px;
+	margin: 0;
+}
+
+.wsa-api-key-field {
+	margin-top: 15px;
+	padding-top: 15px;
+	border-top: 1px solid #eee;
+}
+
+.wsa-api-key-wrapper {
+	position: relative;
+}
+
+.wsa-api-key-wrapper input {
+	padding-right: 40px;
+}
+
+.wsa-toggle-visibility {
+	position: absolute;
+	right: 8px;
+	top: 50%;
+	transform: translateY(-50%);
+	background: none;
+	border: none;
+	cursor: pointer;
+	color: #646970;
+}
+
+.wsa-toggle-visibility:hover {
+	color: #2271b1;
+}
+
+/* ==========================================================================
+   Funnel List Page
+   ========================================================================== */
+
+.wsa-funnel-list-page .page-title-action {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+}
+
+.wsa-funnels-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+	gap: 20px;
+	margin-top: 20px;
+}
+
+.wsa-funnel-card {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 8px;
+	overflow: hidden;
+	transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.wsa-funnel-card:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.wsa-funnel-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	padding: 15px;
+	border-bottom: 1px solid #eee;
+}
+
+.wsa-funnel-title {
+	margin: 0 0 5px;
+	font-size: 16px;
+}
+
+.wsa-funnel-date {
+	font-size: 12px;
+	color: #666;
+}
+
+.wsa-funnel-status {
+	padding: 3px 10px;
+	border-radius: 15px;
+	font-size: 12px;
+	font-weight: 500;
+}
+
+.wsa-funnel-status.active {
+	background: #dcfce7;
+	color: #166534;
+}
+
+.wsa-funnel-status.inactive {
+	background: #fef3c7;
+	color: #92400e;
+}
+
+.wsa-funnel-body {
+	padding: 15px;
+}
+
+.wsa-funnel-stats {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 10px;
+	text-align: center;
+}
+
+.wsa-stat {
+	padding: 10px;
+	background: #f9fafb;
+	border-radius: 6px;
+}
+
+.wsa-stat-number {
+	display: block;
+	font-size: 20px;
+	font-weight: 700;
+	color: #111827;
+}
+
+.wsa-stat-label {
+	display: block;
+	font-size: 11px;
+	color: #6b7280;
+	text-transform: uppercase;
+}
+
+.wsa-funnel-footer {
+	display: flex;
+	justify-content: space-between;
+	padding: 15px;
+	background: #f9fafb;
+}
+
+.wsa-funnel-actions {
+	display: flex;
+	gap: 8px;
+}
+
+.wsa-funnel-actions a,
+.wsa-funnel-actions button {
+	padding: 6px 12px;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	background: #fff;
+	font-size: 13px;
+	text-decoration: none;
+	color: #374151;
+	cursor: pointer;
+	transition: all 0.2s;
+}
+
+.wsa-funnel-actions a:hover,
+.wsa-funnel-actions button:hover {
+	background: #f3f4f6;
+	border-color: #2271b1;
+	color: #2271b1;
+}
+
+.wsa-actions-dropdown {
+	position: relative;
+}
+
+.wsa-dropdown-menu {
+	display: none;
+	position: absolute;
+	right: 0;
+	top: 100%;
+	background: #fff;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+	z-index: 100;
+	min-width: 150px;
+}
+
+.wsa-dropdown-menu.show {
+	display: block;
+}
+
+.wsa-dropdown-menu a {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 15px;
+	color: #374151;
+	text-decoration: none;
+	border: none;
+}
+
+.wsa-dropdown-menu a:hover {
+	background: #f3f4f6;
+}
+
+.wsa-dropdown-menu a.delete {
+	color: #dc3545;
+}
+
+/* Empty State */
+.wsa-empty-state {
+	text-align: center;
+	padding: 60px 40px;
+	background: #fff;
+	border: 2px dashed #ddd;
+	border-radius: 8px;
+	margin-top: 20px;
+}
+
+.wsa-empty-state .dashicons {
+	font-size: 60px;
+	width: 60px;
+	height: 60px;
+	color: #ddd;
+}
+
+.wsa-empty-state h3 {
+	margin: 20px 0 10px;
+}
+
+.wsa-empty-state p {
+	color: #666;
+	margin-bottom: 20px;
+}
+
+/* ==========================================================================
+   Landing Page Builder
+   ========================================================================== */
+
+.wsa-builder-page {
+	display: flex;
+	height: calc(100vh - 100px);
+	margin: -20px -20px 0 0;
+}
+
+.wsa-builder-sidebar {
+	width: 380px;
+	background: #fff;
+	border-right: 1px solid #ddd;
+	overflow-y: auto;
+	flex-shrink: 0;
+}
+
+.wsa-builder-preview {
+	flex: 1;
+	background: #f0f0f1;
+	display: flex;
+	flex-direction: column;
+}
+
+.wsa-sidebar-section {
+	padding: 20px;
+	border-bottom: 1px solid #eee;
+}
+
+.wsa-sidebar-section:last-child {
+	border-bottom: none;
+}
+
+.wsa-sidebar-section h3 {
+	margin: 0 0 15px;
+	font-size: 14px;
+	font-weight: 600;
+	color: #1d2327;
+}
+
+/* Template Selection */
+.wsa-templates-grid {
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: 10px;
+}
+
+.wsa-template-card {
+	position: relative;
+	padding: 15px 10px;
+	background: #f9f9f9;
+	border: 2px solid #ddd;
+	border-radius: 6px;
+	text-align: center;
+	cursor: pointer;
+	transition: all 0.2s;
+}
+
+.wsa-template-card:hover {
+	border-color: #2271b1;
+	background: #f0f6fc;
+}
+
+.wsa-template-card.selected {
+	border-color: #2271b1;
+	background: #f0f6fc;
+}
+
+.wsa-template-card .dashicons {
+	font-size: 24px;
+	width: 24px;
+	height: 24px;
+	color: #2271b1;
+	margin-bottom: 8px;
+}
+
+.wsa-template-card span {
+	display: block;
+	font-size: 12px;
+}
+
+/* Image Upload */
+.wsa-image-upload-zone {
+	border: 2px dashed #ddd;
+	border-radius: 6px;
+	padding: 20px;
+	text-align: center;
+	cursor: pointer;
+	transition: all 0.2s;
+	margin-bottom: 15px;
+}
+
+.wsa-image-upload-zone:hover,
+.wsa-image-upload-zone.dragover {
+	border-color: #2271b1;
+	background: #f0f6fc;
+}
+
+.wsa-image-upload-zone .dashicons {
+	font-size: 32px;
+	width: 32px;
+	height: 32px;
+	color: #999;
+}
+
+.wsa-image-upload-zone p {
+	margin: 10px 0 0;
+	color: #666;
+	font-size: 13px;
+}
+
+.wsa-uploaded-images {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+
+.wsa-uploaded-image {
+	position: relative;
+	width: 80px;
+	height: 80px;
+	border-radius: 4px;
+	overflow: hidden;
+}
+
+.wsa-uploaded-image img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.wsa-uploaded-image button {
+	position: absolute;
+	top: 4px;
+	right: 4px;
+	width: 20px;
+	height: 20px;
+	padding: 0;
+	border: none;
+	border-radius: 50%;
+	background: rgba(0, 0, 0, 0.5);
+	color: #fff;
+	cursor: pointer;
+	line-height: 1;
+}
+
+/* Image Placement Description */
+.wsa-image-placement-field {
+	margin-top: 15px;
+}
+
+.wsa-image-placement-field label {
+	display: block;
+	margin-bottom: 8px;
+	font-weight: 600;
+}
+
+.wsa-image-placement-field textarea {
+	width: 100%;
+	min-height: 80px;
+	padding: 10px;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	resize: vertical;
+}
+
+.wsa-image-placement-field .wsa-helper-text {
+	margin-top: 8px;
+	padding: 10px;
+	background: #f0f6fc;
+	border-radius: 4px;
+	font-size: 12px;
+	color: #2271b1;
+}
+
+/* Preview Controls */
+.wsa-preview-toolbar {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 15px 20px;
+	background: #fff;
+	border-bottom: 1px solid #ddd;
+}
+
+.wsa-device-switcher {
+	display: flex;
+	gap: 5px;
+}
+
+.wsa-device-switcher button {
+	padding: 8px 12px;
+	border: 1px solid #ddd;
+	background: #fff;
+	border-radius: 4px;
+	cursor: pointer;
+	transition: all 0.2s;
+}
+
+.wsa-device-switcher button.active {
+	background: #2271b1;
+	border-color: #2271b1;
+	color: #fff;
+}
+
+.wsa-preview-actions {
+	display: flex;
+	gap: 10px;
+}
+
+.wsa-preview-frame {
+	flex: 1;
+	display: flex;
+	justify-content: center;
+	align-items: flex-start;
+	padding: 20px;
+	overflow: auto;
+}
+
+.wsa-preview-device {
+	background: #fff;
+	border-radius: 8px;
+	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+	overflow: hidden;
+	transition: all 0.3s ease;
+}
+
+.wsa-preview-device.desktop {
+	width: 100%;
+	max-width: 1200px;
+	min-height: 600px;
+}
+
+.wsa-preview-device.tablet {
+	width: 768px;
+	min-height: 600px;
+}
+
+.wsa-preview-device.mobile {
+	width: 375px;
+	min-height: 600px;
+	border-radius: 30px;
+	padding: 10px;
+	background: #1a1a1a;
+}
+
+.wsa-preview-device.mobile iframe,
+.wsa-preview-device.mobile .wsa-preview-content {
+	border-radius: 20px;
+}
+
+.wsa-preview-content {
+	width: 100%;
+	height: 100%;
+	min-height: 600px;
+	border: none;
+}
+
+/* Code Editor Toggle */
+.wsa-code-editor {
+	display: none;
+	height: 100%;
+}
+
+.wsa-code-editor.active {
+	display: block;
+}
+
+.wsa-code-editor textarea {
+	width: 100%;
+	height: 100%;
+	font-family: monospace;
+	font-size: 13px;
+	padding: 15px;
+	border: none;
+	resize: none;
+}
+
+/* Generate Button */
+.wsa-generate-section {
+	padding: 20px;
+	background: #f9f9f9;
+}
+
+.wsa-generate-btn {
+	width: 100%;
+	padding: 15px;
+	font-size: 16px;
+	font-weight: 600;
+	border: none;
+	border-radius: 6px;
+	background: linear-gradient(135deg, #7c3aed 0%, #2563eb 100%);
+	color: #fff;
+	cursor: pointer;
+	transition: all 0.2s;
+}
+
+.wsa-generate-btn:hover {
+	transform: translateY(-1px);
+	box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+}
+
+.wsa-generate-btn:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+	transform: none;
+}
+
+.wsa-generate-btn .dashicons {
+	animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+	100% { transform: rotate(360deg); }
+}
+
+/* ==========================================================================
+   Responsive Adjustments
+   ========================================================================== */
+
+@media (max-width: 1200px) {
+	.wsa-builder-sidebar {
+		width: 320px;
+	}
+}
+
+@media (max-width: 782px) {
+	.wsa-builder-page {
+		flex-direction: column;
+		height: auto;
+	}
+	
+	.wsa-builder-sidebar {
+		width: 100%;
+		border-right: none;
+		border-bottom: 1px solid #ddd;
+	}
+	
+	.wsa-builder-preview {
+		min-height: 500px;
+	}
+	
+	.wsa-funnels-grid {
+		grid-template-columns: 1fr;
+	}
+	
+	.wsa-provider-grid {
+		grid-template-columns: 1fr;
+	}
+}

@@ -8,13 +8,7 @@ class Courier {
 
 	public function init() {
 		add_action( 'rest_api_init', [ $this, 'register_rest_routes' ] );
-		
-		// Initialize settings page in admin
-		if ( is_admin() ) {
-			require_once WSA_PATH . 'includes/Modules/Courier/CourierSettings.php';
-			$settings = new CourierSettings();
-			$settings->init();
-		}
+		// CourierSettings UI removed — FraudPeek credentials are hardcoded
 	}
 
 	public function register_rest_routes() {

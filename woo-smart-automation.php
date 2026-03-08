@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define Constants
-define( 'WSA_VERSION', '1.0.3' );
+define( 'WSA_VERSION', '1.1.0' );
 define( 'WSA_FILE', __FILE__ );
 define( 'WSA_PATH', plugin_dir_path( __FILE__ ) );
 define( 'WSA_URL', plugin_dir_url( __FILE__ ) );

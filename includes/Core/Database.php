@@ -6,7 +6,7 @@ class Database {
 	public static function activate() {
 		self::create_incomplete_orders_table();
 		self::migrate_incomplete_orders_table();
-		self::create_courier_score_table();
+		self::create_courier_score_table(); // also runs migrate_courier_score_table
 		self::create_device_blocks_table();
 		add_option( 'wsa_db_version', WSA_VERSION );
 		
@@ -28,15 +28,16 @@ class Database {
 	}
 
 	public static function maybe_install() {
+		// Always run migrations — they check column existence first, so safe to run on every load.
+		self::migrate_courier_score_table();
+		self::migrate_incomplete_orders_table();
+
 		if ( get_option( 'wsa_db_version' ) !== WSA_VERSION ) {
 			self::create_incomplete_orders_table();
-			self::create_courier_score_table();
+			self::create_courier_score_table(); // also runs migrate_courier_score_table
 			self::create_device_blocks_table();
 			update_option( 'wsa_db_version', WSA_VERSION );
 		}
-
-		// Ensure admin_note column exists (Migration Support)
-		self::migrate_incomplete_orders_table();
 	}
 
 	private static function migrate_incomplete_orders_table() {
@@ -80,7 +81,7 @@ class Database {
 	}
 
 	/**
-	 * Create courier score cache table for permanent storage
+	 * Create courier score cache table for FraudPeek permanent storage
 	 */
 	private static function create_courier_score_table() {
 		global $wpdb;
@@ -91,22 +92,80 @@ class Database {
 		$sql = "CREATE TABLE $table_name (
 			id bigint(20) NOT NULL AUTO_INCREMENT,
 			phone varchar(50) NOT NULL,
+			risk_score int(11) DEFAULT 50,
+			ai_risk_score int(11) DEFAULT 50,
+			risk_level varchar(20) DEFAULT 'unknown',
+			risk_message text DEFAULT NULL,
+			ai_summary text DEFAULT NULL,
 			total_parcels int(11) DEFAULT 0,
-			total_delivered int(11) DEFAULT 0,
-			total_cancelled int(11) DEFAULT 0,
-			success_rate decimal(5,2) DEFAULT 0,
-			data_source varchar(20) DEFAULT 'api',
+			delivered_parcels int(11) DEFAULT 0,
+			cancelled_parcels int(11) DEFAULT 0,
+			returned_parcels int(11) DEFAULT 0,
+			average_delivery_rate decimal(5,2) DEFAULT 0,
+			average_return_rate decimal(5,2) DEFAULT 0,
+			fraud_alerts int(11) DEFAULT 0,
+			report_count int(11) DEFAULT 0,
+			comment_count int(11) DEFAULT 0,
+			courier_sources int(11) DEFAULT 0,
+			last_reported_at datetime DEFAULT NULL,
+			last_fraud_at datetime DEFAULT NULL,
+			last_lookup_at datetime DEFAULT NULL,
+			couriers_json longtext DEFAULT NULL,
+			reports_json longtext DEFAULT NULL,
+			data_source varchar(30) DEFAULT 'fraudpeek',
 			last_checked datetime DEFAULT CURRENT_TIMESTAMP,
 			created_at datetime DEFAULT CURRENT_TIMESTAMP,
 			PRIMARY KEY  (id),
 			UNIQUE KEY phone (phone),
-			KEY last_checked (last_checked)
+			KEY last_checked (last_checked),
+			KEY risk_level (risk_level)
 		) $charset_collate;";
 
 		require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
 		dbDelta( $sql );
+
+		// Run migration for existing tables (add new columns if missing)
+		self::migrate_courier_score_table();
 	}
-	
+
+	/**
+	 * Migrate existing courier_scores table to add FraudPeek columns
+	 */
+	private static function migrate_courier_score_table() {
+		global $wpdb;
+		$table = $wpdb->prefix . 'woo_smart_courier_scores';
+
+		// List of new columns to add if they don't exist
+		$new_columns = [
+			'risk_score'            => "ALTER TABLE {$table} ADD COLUMN risk_score int(11) DEFAULT 50 AFTER phone",
+			'ai_risk_score'         => "ALTER TABLE {$table} ADD COLUMN ai_risk_score int(11) DEFAULT 50 AFTER risk_score",
+			'risk_level'            => "ALTER TABLE {$table} ADD COLUMN risk_level varchar(20) DEFAULT 'unknown' AFTER ai_risk_score",
+			'risk_message'          => "ALTER TABLE {$table} ADD COLUMN risk_message text DEFAULT NULL AFTER risk_level",
+			'ai_summary'            => "ALTER TABLE {$table} ADD COLUMN ai_summary text DEFAULT NULL AFTER risk_message",
+			'delivered_parcels'     => "ALTER TABLE {$table} ADD COLUMN delivered_parcels int(11) DEFAULT 0 AFTER total_parcels",
+			'cancelled_parcels'     => "ALTER TABLE {$table} ADD COLUMN cancelled_parcels int(11) DEFAULT 0 AFTER delivered_parcels",
+			'returned_parcels'      => "ALTER TABLE {$table} ADD COLUMN returned_parcels int(11) DEFAULT 0 AFTER cancelled_parcels",
+			'average_delivery_rate' => "ALTER TABLE {$table} ADD COLUMN average_delivery_rate decimal(5,2) DEFAULT 0 AFTER returned_parcels",
+			'average_return_rate'   => "ALTER TABLE {$table} ADD COLUMN average_return_rate decimal(5,2) DEFAULT 0 AFTER average_delivery_rate",
+			'fraud_alerts'          => "ALTER TABLE {$table} ADD COLUMN fraud_alerts int(11) DEFAULT 0 AFTER average_return_rate",
+			'report_count'          => "ALTER TABLE {$table} ADD COLUMN report_count int(11) DEFAULT 0 AFTER fraud_alerts",
+			'comment_count'         => "ALTER TABLE {$table} ADD COLUMN comment_count int(11) DEFAULT 0 AFTER report_count",
+			'courier_sources'       => "ALTER TABLE {$table} ADD COLUMN courier_sources int(11) DEFAULT 0 AFTER comment_count",
+			'last_reported_at'      => "ALTER TABLE {$table} ADD COLUMN last_reported_at datetime DEFAULT NULL AFTER courier_sources",
+			'last_fraud_at'         => "ALTER TABLE {$table} ADD COLUMN last_fraud_at datetime DEFAULT NULL AFTER last_reported_at",
+			'last_lookup_at'        => "ALTER TABLE {$table} ADD COLUMN last_lookup_at datetime DEFAULT NULL AFTER last_fraud_at",
+			'couriers_json'         => "ALTER TABLE {$table} ADD COLUMN couriers_json longtext DEFAULT NULL AFTER last_lookup_at",
+			'reports_json'          => "ALTER TABLE {$table} ADD COLUMN reports_json longtext DEFAULT NULL AFTER couriers_json",
+		];
+
+		foreach ( $new_columns as $col => $sql ) {
+			$exists = $wpdb->get_results( "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '{$table}' AND COLUMN_NAME = '{$col}'" );
+			if ( empty( $exists ) ) {
+				$wpdb->query( $sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+			}
+		}
+	}
+
 	/**
 	 * Create device blocks table for storing blocked device fingerprints
 	 */

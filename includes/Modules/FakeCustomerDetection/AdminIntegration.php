@@ -72,10 +72,30 @@ class AdminIntegration {
 		$is_duplicate = get_post_meta( $order_id, '_wsa_is_potential_duplicate', true );
 		$signals_data = $signals ? json_decode( $signals, true ) : [];
 
-		// Show async pending/processing badge
-		if ( $score === '' || $risk_status === 'pending' || $risk_status === 'processing' ) {
-			$label = ( $risk_status === 'processing' ) ? '⚙️ Analyzing…' : '⏳ Queued';
-			echo '<span class="wsa-risk-pending wsa-risk-async-badge">' . esc_html( $label ) . '</span>';
+		// Show async pending/processing/failed badge (with manual recheck option)
+		if ( $score === '' || $risk_status === 'pending' || $risk_status === 'processing' || $risk_status === 'failed' ) {
+			if ( $risk_status === 'processing' ) {
+				$label = '⚙️ Analyzing…';
+				$status_class = 'wsa-status-processing';
+			} elseif ( $risk_status === 'failed' ) {
+				$label = '⚠️ Error';
+				$status_class = 'wsa-status-failed';
+			} else {
+				$label = '⏳ Queued';
+				$status_class = 'wsa-status-queued';
+			}
+			?>
+			<div class="wsa-risk-container" data-order-id="<?php echo esc_attr( $order_id ); ?>">
+				<div class="wsa-risk-footer">
+					<span class="wsa-risk-async-badge <?php echo esc_attr( $status_class ); ?>">
+						<?php echo esc_html( $label ); ?>
+					</span>
+					<button type="button" class="wsa-recheck-risk-btn" title="Manual Recheck" data-order-id="<?php echo esc_attr( $order_id ); ?>">
+						<span class="dashicons dashicons-update"></span>
+					</button>
+				</div>
+			</div>
+			<?php
 			return;
 		}
 
@@ -97,7 +117,7 @@ class AdminIntegration {
 		$tooltip_text = implode( '\n', $tooltip_lines );
 
 		?>
-		<div class="wsa-risk-container">
+		<div class="wsa-risk-container" data-order-id="<?php echo esc_attr( $order_id ); ?>">
 			<!-- Progress Bar -->
 			<div class="wsa-risk-progress-bar wsa-view-details"
 				 data-order-id="<?php echo esc_attr( $order_id ); ?>"
@@ -107,10 +127,15 @@ class AdminIntegration {
 				</div>
 			</div>
 
-			<!-- Risk Level Badge -->
-			<span class="wsa-risk-level-badge wsa-level-<?php echo esc_attr( $risk_class ); ?>">
-				<?php echo esc_html( $risk_level ); ?>
-			</span>
+			<!-- Risk Level Badge & Recheck -->
+			<div class="wsa-risk-footer">
+				<span class="wsa-risk-level-badge wsa-level-<?php echo esc_attr( $risk_class ); ?>">
+					<?php echo esc_html( $risk_level ); ?>
+				</span>
+				<button type="button" class="wsa-recheck-risk-btn" title="Manual Recheck" data-order-id="<?php echo esc_attr( $order_id ); ?>">
+					<span class="dashicons dashicons-update"></span>
+				</button>
+			</div>
 
 			<!-- Inline Tooltip (hover) -->
 			<?php if ( ! empty( $tooltip_lines ) ) : ?>
@@ -487,84 +512,101 @@ class AdminIntegration {
 
 	/**
 	 * AJAX handler to recalculate risk score for an order and all customer orders
+	 * Optimized to prevent 500 errors on live servers
 	 */
 	public function ajax_recalculate_risk() {
 		check_ajax_referer( 'wsa_risk_details', 'nonce' );
 
-		$order_id = isset( $_POST['order_id'] ) ? intval( $_POST['order_id'] ) : 0;
+		try {
+			$order_id = isset( $_POST['order_id'] ) ? intval( $_POST['order_id'] ) : 0;
 
-		if ( ! $order_id ) {
-			wp_send_json_error( [ 'message' => 'Invalid order ID' ] );
-		}
-
-		$order = wc_get_order( $order_id );
-		
-		if ( ! $order ) {
-			wp_send_json_error( [ 'message' => 'Order not found' ] );
-		}
-
-		// Get customer identifier
-		$customer_id = $order->get_customer_id();
-		$email = $order->get_billing_email();
-		$phone = $order->get_billing_phone();
-
-		// Find all orders from this customer
-		$args = [
-			'limit'  => -1,
-			'return' => 'ids',
-		];
-
-		if ( $customer_id > 0 ) {
-			$args['customer_id'] = $customer_id;
-		} else {
-			$args['billing_email'] = $email;
-		}
-
-		$customer_order_ids = wc_get_orders( $args );
-
-		// Also get orders by phone number
-		$phone_orders = wc_get_orders( [
-			'limit'         => -1,
-			'return'        => 'ids',
-			'billing_phone' => $phone,
-		] );
-
-		// Merge and unique
-		$all_order_ids = array_unique( array_merge( $customer_order_ids, $phone_orders ) );
-
-		// Recalculate risk score with fresh API data (bypass cache)
-		require_once WSA_PATH . 'includes/Modules/FakeCustomerDetection/RiskScorer.php';
-		$scorer = new RiskScorer();
-		
-		// First, calculate for the current order (with bypass_cache to get fresh SteadFast data)
-		$result = $scorer->calculate_score( $order_id, true );
-		
-		if ( ! $result ) {
-			wp_send_json_error( [ 'message' => 'Failed to calculate risk score' ] );
-		}
-
-		// Store current order meta
-		update_post_meta( $order_id, '_wsa_risk_score', $result['score'] );
-		update_post_meta( $order_id, '_wsa_risk_signals', wp_json_encode( $result['signals'] ) );
-		update_post_meta( $order_id, '_wsa_risk_summary', $result['summary'] );
-
-		$updated_count = 1; // Already updated current order
-
-		// Now update all other customer orders
-		foreach ( $all_order_ids as $other_order_id ) {
-			if ( $other_order_id == $order_id ) {
-				continue; // Skip current order
+			if ( ! $order_id ) {
+				throw new \Exception( 'Invalid order ID' );
 			}
 
-			// Recalculate (cache will be used now since we already fetched)
-			$other_result = $scorer->calculate_score( $other_order_id, false );
+			$order = wc_get_order( $order_id );
 			
-			if ( $other_result ) {
-				update_post_meta( $other_order_id, '_wsa_risk_score', $other_result['score'] );
-				update_post_meta( $other_order_id, '_wsa_risk_signals', wp_json_encode( $other_result['signals'] ) );
-				update_post_meta( $other_order_id, '_wsa_risk_summary', $other_result['summary'] );
+			// Guard: don't process refund objects (they have no billing_phone)
+			if ( ! $order ) {
+				throw new \Exception( 'Order not found' );
+			}
+			if ( $order instanceof \WC_Order_Refund
+				|| ( method_exists( $order, 'get_type' ) && $order->get_type() === 'shop_order_refund' ) ) {
+				// Resolve to parent order automatically
+				$parent_id = $order->get_parent_id();
+				if ( ! $parent_id ) {
+					throw new \Exception( 'This is a refund object, not a real order' );
+				}
+				$order_id = $parent_id;
+				$order    = wc_get_order( $order_id );
+				if ( ! $order ) {
+					throw new \Exception( 'Parent order not found' );
+				}
+			}
 
-				// Copy FraudPeek data to this order too
+			// 1. Recalculate risk score for the TARGET order first (with fresh API data)
+			require_once WSA_PATH . 'includes/Modules/FakeCustomerDetection/RiskScorer.php';
+			$scorer = new \WooSmartAutomation\Modules\FakeCustomerDetection\RiskScorer();
+			$result = $scorer->calculate_score( $order_id, true ); // bypass_cache = true
+			
+			if ( ! $result ) {
+				throw new \Exception( 'Failed to calculate risk score (API error)' );
+			}
+
+			// Store result in target order meta immediately
+			update_post_meta( $order_id, '_wsa_risk_score',   $result['score'] );
+			update_post_meta( $order_id, '_wsa_risk_signals', wp_json_encode( $result['signals'] ) );
+			update_post_meta( $order_id, '_wsa_risk_summary', $result['summary'] );
+			update_post_meta( $order_id, '_wsa_risk_status',  'completed' );
+			update_post_meta( $order_id, '_wsa_risk_calculated_at', current_time( 'mysql' ) );
+
+			// 2. Identify other orders by same customer to SYNC (not recalculate)
+			$customer_id = $order->get_customer_id();
+			$email       = $order->get_billing_email();
+			$phone       = $order->get_billing_phone();
+
+			$other_order_ids = [];
+
+			// Base query args
+			$query_args = [
+				'limit'   => 50, // Safety limit for live servers
+				'exclude' => [ $order_id ],
+				'return'  => 'ids',
+			];
+
+			if ( $customer_id > 0 ) {
+				$query_args['customer_id'] = $customer_id;
+				$res = wc_get_orders( $query_args );
+				if ( is_array( $res ) ) $other_order_ids = array_merge( $other_order_ids, $res );
+			} elseif ( ! empty( $email ) ) {
+				$query_args['billing_email'] = $email;
+				$res = wc_get_orders( $query_args );
+				if ( is_array( $res ) ) $other_order_ids = array_merge( $other_order_ids, $res );
+			}
+
+			// Match by phone using meta_query for maximum compatibility across environments
+			if ( ! empty( $phone ) ) {
+				$phone_args = [
+					'limit'   => 50,
+					'exclude' => array_merge( [ $order_id ], $other_order_ids ),
+					'return'  => 'ids',
+					'meta_query' => [
+						[
+							'key'     => '_billing_phone',
+							'value'   => $phone,
+							'compare' => '=',
+						],
+					],
+				];
+				$res = wc_get_orders( $phone_args );
+				if ( is_array( $res ) ) $other_order_ids = array_merge( $other_order_ids, $res );
+			}
+
+			$other_order_ids = array_unique( $other_order_ids );
+
+			// 3. Sync FraudPeek intelligence to related orders (Efficiently)
+			if ( ! empty( $other_order_ids ) ) {
+				// Fetch FraudPeek keys once to avoid redundant reads in loop
 				$fp_meta_keys = [
 					'_wsa_fp_available', '_wsa_fp_risk_score', '_wsa_fp_ai_risk_score',
 					'_wsa_fp_risk_level', '_wsa_fp_risk_message', '_wsa_fp_ai_summary',
@@ -575,21 +617,32 @@ class AdminIntegration {
 					'_wsa_courier_total_orders', '_wsa_courier_delivered', '_wsa_courier_cancelled',
 					'_wsa_courier_success_rate', '_wsa_courier_data_source',
 				];
-				foreach ( $fp_meta_keys as $meta_key ) {
-					$val = get_post_meta( $order_id, $meta_key, true );
+
+				$sync_data = [];
+				foreach ( $fp_meta_keys as $key ) {
+					$val = get_post_meta( $order_id, $key, true );
 					if ( $val !== '' && $val !== false ) {
-						update_post_meta( $other_order_id, $meta_key, $val );
+						$sync_data[ $key ] = $val;
 					}
 				}
 
-				$updated_count++;
+				foreach ( $other_order_ids as $other_oid ) {
+					foreach ( $sync_data as $key => $val ) {
+						update_post_meta( $other_oid, $key, $val );
+					}
+					// Also ensure they show as calculated
+					update_post_meta( $other_oid, '_wsa_risk_status', 'completed' );
+				}
 			}
-		}
 
-		wp_send_json_success( [ 
-			'message' => sprintf( 'Risk score recalculated for %d orders!', $updated_count ),
-			'score'   => $result['score'],
-			'updated' => $updated_count
-		] );
+			wp_send_json_success( [ 
+				'message' => sprintf( 'Intelligence refreshed for #%d and synced to %d other orders.', $order_id, count( $other_order_ids ) ),
+				'score'   => $result['score'],
+				'level'   => $this->get_risk_level( $result['score'] ),
+			] );
+
+		} catch ( \Exception $e ) {
+			wp_send_json_error( [ 'message' => $e->getMessage() ] );
+		}
 	}
 }

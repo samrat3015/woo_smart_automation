@@ -3,33 +3,42 @@ namespace WooSmartAutomation\Modules\Courier\Handlers;
 
 /**
  * Handle Pathao Webhooks
+ *
+ * Security: Requires Bearer token to match wsa_pathao_webhook_token option.
+ * Status mapping: ONLY uses admin-configured mappings (wsa_pathao_status_map).
+ * No built-in defaults that could silently cancel or change orders.
  */
 class PathaoHandler {
 
 	public function handle( $request ) {
 		$params = $request->get_params();
 
-		// Handle Pathao Integration Verification
+		// ── Handle Pathao Integration Verification handshake ─────────────────
 		if ( isset( $params['event'] ) && 'webhook_integration' === $params['event'] ) {
 			$response = new \WP_REST_Response( [ 'success' => true ], 202 );
 			$response->header( 'X-Pathao-Merchant-Webhook-Integration-Secret', 'f3992ecc-59da-4cbe-a049-a13da2018d51' );
 			return $response;
 		}
 
-		// Security Check: Verify Webhook Token
-		$auth_header = $request->get_header( 'authorization' );
-		$stored_token = get_option( 'wsa_pathao_webhook_token' );
-		
-		if ( ! $auth_header || 'Bearer ' . $stored_token !== $auth_header ) {
-			// Pathao doesn't always send the bearer token in every event during testing,
-			// so we log it but don't block yet to ensure your tests pass.
-			error_log( 'Pathao Webhook: Caution - Authorization header mismatch or missing.' );
+		// ── Guard: Courier Webhooks toggle ────────────────────────────────────
+		if ( 'yes' !== get_option( 'wsa_courier_webhook_enabled', 'yes' ) ) {
+			return new \WP_REST_Response( [ 'status' => 'ignored', 'message' => 'Courier Webhooks are disabled.' ], 200 );
 		}
 
-		// Log the incoming request for debugging
-		error_log( 'Pathao Webhook Received: ' . print_r( $params, true ) );
+		// ── Security: Enforce Bearer Token ────────────────────────────────────
+		$stored_token = get_option( 'wsa_pathao_webhook_token', '' );
 
-		// Pathao uses merchant_order_id for your WooCommerce Order ID
+		if ( ! empty( $stored_token ) ) {
+			$auth_header = $request->get_header( 'authorization' );
+
+			if ( ! $auth_header || 'Bearer ' . $stored_token !== $auth_header ) {
+				error_log( 'WSA Pathao Webhook: Unauthorized request rejected. Auth: ' . $auth_header );
+				return new \WP_REST_Response( [ 'success' => false, 'message' => 'Unauthorized' ], 401 );
+			}
+		}
+
+		error_log( 'WSA Pathao Webhook Received: ' . print_r( $params, true ) );
+
 		$order_id = isset( $params['merchant_order_id'] ) ? sanitize_text_field( $params['merchant_order_id'] ) : '';
 		$event    = isset( $params['event'] ) ? sanitize_text_field( $params['event'] ) : '';
 
@@ -43,33 +52,58 @@ class PathaoHandler {
 			return new \WP_REST_Response( [ 'success' => false, 'message' => 'Order not found: ' . $order_id ], 404 );
 		}
 
-		// Map Pathao event to WooCommerce status using dynamic settings
+		// Guard: never process refund objects
+		if ( $order instanceof \WC_Order_Refund
+			|| ( method_exists( $order, 'get_type' ) && $order->get_type() === 'shop_order_refund' ) ) {
+			return new \WP_REST_Response( [ 'success' => false, 'message' => 'Cannot update a refund object.' ], 400 );
+		}
+
+		// ── Map event using ONLY admin-configured mappings ────────────────────
+		// No built-in defaults — admin must explicitly configure each mapping.
 		$new_status = $this->map_status( $event );
 
 		if ( $new_status ) {
-			$order->update_status( $new_status, sprintf( __( 'Status updated via Pathao Webhook: %s', 'woo-smart-automation' ), $event ) );
+			$order->update_status(
+				$new_status,
+				sprintf(
+					__( 'Status updated via Pathao Webhook: %s → %s', 'woo-smart-automation' ),
+					$event,
+					$new_status
+				)
+			);
+			error_log( "WSA Pathao: Order #{$order_id} status changed from {$event} → {$new_status}" );
 			return new \WP_REST_Response( [ 'success' => true ], 200 );
 		}
 
-		return new \WP_REST_Response( [ 'success' => false, 'message' => 'Unhandled or Unmapped event: ' . $event ], 200 );
+		error_log( "WSA Pathao: No mapping configured for event '{$event}' on order #{$order_id}. No change made." );
+		return new \WP_REST_Response( [
+			'success' => false,
+			'message' => 'No mapping configured for event: ' . $event,
+		], 200 );
 	}
 
+	/**
+	 * Map a Pathao event to a WooCommerce status.
+	 *
+	 * ONLY uses the admin-configured dynamic map (wsa_pathao_status_map).
+	 * No built-in defaults that could auto-cancel or change orders unexpectedly.
+	 *
+	 * @param  string $pathao_event
+	 * @return string|false WC status string, or false if not mapped
+	 */
 	private function map_status( $pathao_event ) {
 		$dynamic_map = get_option( 'wsa_pathao_status_map', [] );
-		
-		if ( isset( $dynamic_map[ $pathao_event ] ) && ! empty( $dynamic_map[ $pathao_event ] ) ) {
-			return $dynamic_map[ $pathao_event ];
+
+		error_log( 'WSA Pathao map_status: event="' . $pathao_event . '" map=' . print_r( $dynamic_map, true ) );
+
+		if ( ! empty( $dynamic_map ) && isset( $dynamic_map[ $pathao_event ] ) && $dynamic_map[ $pathao_event ] !== '' ) {
+			$mapped = $dynamic_map[ $pathao_event ];
+			error_log( 'WSA Pathao: mapped "' . $pathao_event . '" → "' . $mapped . '"' );
+			return $mapped;
 		}
 
-		// Fallback to defaults if not set in admin
-		$default_mapping = [
-			'order.delivered'        => 'completed',
-			'order.pickup-cancelled' => 'cancelled',
-			'order.returned'         => 'refunded',
-			'order.created'          => 'processing',
-			'order.picked-up'        => 'processing',
-		];
-
-		return isset( $default_mapping[ $pathao_event ] ) ? $default_mapping[ $pathao_event ] : false;
+		// No mapping found — do NOT apply any built-in defaults.
+		error_log( 'WSA Pathao: No admin mapping for "' . $pathao_event . '" — ignoring.' );
+		return false;
 	}
 }

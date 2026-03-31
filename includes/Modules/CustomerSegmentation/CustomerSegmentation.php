@@ -109,38 +109,56 @@ class CustomerSegmentation {
 	}
 
 	public function display_order_trust_column( $column, $post_or_order ) {
-		if ( $column === 'wsa_customer_trust' ) {
-			// Handle HPOS (Order Object) vs Legacy (Post ID)
-			$order = ( $post_or_order instanceof \WC_Order ) ? $post_or_order : wc_get_order( $post_or_order );
-			
-			if ( ! $order ) return;
+		if ( $column !== 'wsa_customer_trust' ) {
+			return;
+		}
 
-			$order_id    = $order->get_id();
-			$email       = $order->get_billing_email();
-			$customer_id = $order->get_customer_id();
+		// Handle HPOS (Order Object) vs Legacy (Post ID)
+		$order = ( $post_or_order instanceof \WC_Order ) ? $post_or_order : wc_get_order( $post_or_order );
 
-			// Logic: Count past orders (Completed or Processing) excluding current order
-			$args = [
-				'exclude' => [ $order_id ],
-				'status'  => [ 'wc-completed', 'wc-processing' ],
-				'return'  => 'ids',
-				'limit'   => -1,
-			];
+		if ( ! $order ) {
+			return;
+		}
 
-			if ( $customer_id ) {
-				$args['customer_id'] = $customer_id;
-			} else {
-				$args['billing_email'] = $email;
-			}
+		// Skip refund objects — they are not real orders
+		if ( $order instanceof \WC_Order_Refund
+			|| ( method_exists( $order, 'get_type' ) && $order->get_type() === 'shop_order_refund' ) ) {
+			return;
+		}
 
-			$past_orders = wc_get_orders( $args );
-			$count = count( $past_orders );
+		$order_id    = $order->get_id();
+		$email       = $order->get_billing_email();
+		$customer_id = $order->get_customer_id();
 
-			if ( $count > 0 ) {
-				echo '<span class="wsa-trust-badge wsa-returning-buyer" title="' . $count . ' previous successful orders">Returning (' . $count . ')</span>';
-			} else {
-				echo '<span class="wsa-trust-badge wsa-new-buyer">New</span>';
-			}
+		// Count past COMPLETED orders for this customer, EXCLUDING:
+		// 1. The current order
+		// 2. WC_Order_Refund objects (type=shop_order_refund)
+		$args = [
+			'exclude' => [ $order_id ],
+			'status'  => [ 'wc-completed' ],
+			'return'  => 'ids',
+			'limit'   => -1,
+			'type'    => 'shop_order', // Critical: exclude refund objects from count
+		];
+
+		// Use customer_id if the customer is logged in (> 0 check, not just truthy)
+		if ( $customer_id > 0 ) {
+			$args['customer_id'] = $customer_id;
+		} elseif ( ! empty( $email ) ) {
+			$args['billing_email'] = $email;
+		} else {
+			// No identity available — show New
+			echo '<span class="wsa-trust-badge wsa-new-buyer">New</span>';
+			return;
+		}
+
+		$past_orders = wc_get_orders( $args );
+		$count = count( $past_orders );
+
+		if ( $count > 0 ) {
+			echo '<span class="wsa-trust-badge wsa-returning-buyer" title="' . $count . ' previous successful orders">Returning (' . $count . ')</span>';
+		} else {
+			echo '<span class="wsa-trust-badge wsa-new-buyer">New</span>';
 		}
 	}
 

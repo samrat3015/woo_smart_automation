@@ -7,7 +7,10 @@ namespace WooSmartAutomation\Modules\Courier;
 class Courier {
 
 	public function init() {
-		add_action( 'rest_api_init', [ $this, 'register_rest_routes' ] );
+		// Only register webhook routes if Courier Webhooks is enabled in settings
+		if ( 'yes' === get_option( 'wsa_courier_webhook_enabled', 'yes' ) ) {
+			add_action( 'rest_api_init', [ $this, 'register_rest_routes' ] );
+		}
 		// CourierSettings UI removed — FraudPeek credentials are hardcoded
 	}
 

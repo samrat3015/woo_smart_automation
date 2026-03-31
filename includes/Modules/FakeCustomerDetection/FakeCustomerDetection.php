@@ -39,6 +39,13 @@ class FakeCustomerDetection {
 			return;
 		}
 
+		// Skip refund objects — they have no billing data
+		$order = wc_get_order( $order_id );
+		if ( ! $order || $order instanceof \WC_Order_Refund
+			|| ( method_exists( $order, 'get_type' ) && $order->get_type() === 'shop_order_refund' ) ) {
+			return;
+		}
+
 		// Store a "pending" marker so admin sees it is queued
 		update_post_meta( $order_id, '_wsa_risk_status', 'pending' );
 
@@ -55,6 +62,12 @@ class FakeCustomerDetection {
 	public function schedule_risk_on_status_change( $order_id, $old_status, $new_status, $order ) {
 		// Don't re-schedule if admin manually overrode
 		if ( $order && $order->get_meta( '_wsa_risk_manual_override' ) === 'yes' ) {
+			return;
+		}
+
+		// Skip refunds — they are not real orders
+		if ( $order instanceof \WC_Order_Refund
+			|| ( $order && method_exists( $order, 'get_type' ) && $order->get_type() === 'shop_order_refund' ) ) {
 			return;
 		}
 
@@ -79,37 +92,46 @@ class FakeCustomerDetection {
 
 		$order = wc_get_order( $order_id );
 
-		if ( ! $order ) {
+		// Bail on missing orders AND refund objects (no billing methods)
+		if ( ! $order || $order instanceof \WC_Order_Refund
+			|| ( method_exists( $order, 'get_type' ) && $order->get_type() === 'shop_order_refund' ) ) {
 			return;
 		}
 
-		// Mark as processing so we know it's running
-		update_post_meta( $order_id, '_wsa_risk_status', 'processing' );
+		try {
+			// Mark as processing so we know it's running
+			update_post_meta( $order_id, '_wsa_risk_status', 'processing' );
 
-		// Get customer identifier
-		$email       = $order->get_billing_email();
-		$customer_id = $order->get_customer_id();
+			// Get customer identifier
+			$email       = $order->get_billing_email();
+			$customer_id = $order->get_customer_id();
 
-		// Calculate risk for current order
-		require_once WSA_PATH . 'includes/Modules/FakeCustomerDetection/RiskScorer.php';
-		$scorer = new RiskScorer();
-		$result = $scorer->calculate_score( $order_id );
+			// Calculate risk for current order
+			require_once WSA_PATH . 'includes/Modules/FakeCustomerDetection/RiskScorer.php';
+			$scorer = new \WooSmartAutomation\Modules\FakeCustomerDetection\RiskScorer();
+			$result = $scorer->calculate_score( $order_id );
 
-		if ( $result ) {
-			update_post_meta( $order_id, '_wsa_risk_score',   $result['score'] );
-			update_post_meta( $order_id, '_wsa_risk_signals', wp_json_encode( $result['signals'] ) );
-			update_post_meta( $order_id, '_wsa_risk_summary', $result['summary'] );
-			update_post_meta( $order_id, '_wsa_risk_status',  'done' );
-			update_post_meta( $order_id, '_wsa_risk_calculated_at', current_time( 'mysql' ) );
+			if ( $result ) {
+				update_post_meta( $order_id, '_wsa_risk_score',   $result['score'] );
+				update_post_meta( $order_id, '_wsa_risk_signals', wp_json_encode( $result['signals'] ) );
+				update_post_meta( $order_id, '_wsa_risk_summary', $result['summary'] );
+				update_post_meta( $order_id, '_wsa_risk_status',  'completed' );
+				update_post_meta( $order_id, '_wsa_risk_calculated_at', current_time( 'mysql' ) );
 
-			// Auto Action: Hold or Cancel based on score
-			$this->maybe_apply_auto_action( $order, $result['score'] );
-		} else {
+				// Auto Action: Hold or Cancel based on score
+				$this->maybe_apply_auto_action( $order, $result['score'] );
+			} else {
+				// No result (could be API error)
+				update_post_meta( $order_id, '_wsa_risk_status', 'failed' );
+			}
+		} catch ( \Exception $e ) {
+			error_log( 'WSA Background Risk Error: ' . $e->getMessage() );
 			update_post_meta( $order_id, '_wsa_risk_status', 'failed' );
 		}
 
 		// Update all other orders from the same customer (background, non-blocking)
-		$this->update_customer_orders( $email, $customer_id, $order_id );
+		$phone = $order->get_billing_phone();
+		$this->update_customer_orders( $email, $customer_id, $order_id, $phone );
 	}
 
 	/**
@@ -172,11 +194,12 @@ class FakeCustomerDetection {
 	/**
 	 * Update risk scores for all orders from the same customer (runs in background)
 	 */
-	private function update_customer_orders( $email, $customer_id, $exclude_order_id ) {
+	private function update_customer_orders( $email, $customer_id, $exclude_order_id, $phone = '' ) {
 		$args = [
 			'limit'   => -1,
 			'exclude' => [ $exclude_order_id ],
 			'return'  => 'ids',
+			'type'    => 'shop_order', // Explicitly exclude refund objects
 		];
 
 		if ( $customer_id > 0 ) {
@@ -186,6 +209,19 @@ class FakeCustomerDetection {
 		}
 
 		$customer_orders = wc_get_orders( $args );
+
+		// Also merge by phone if provided
+		if ( ! empty( $phone ) ) {
+			$phone_args = [
+				'limit'         => -1,
+				'exclude'       => [ $exclude_order_id ],
+				'billing_phone' => $phone,
+				'return'        => 'ids',
+				'type'          => 'shop_order', // Explicitly exclude refund objects
+			];
+			$phone_ids = wc_get_orders( $phone_args );
+			$customer_orders = array_unique( array_merge( $customer_orders, $phone_ids ) );
+		}
 
 		if ( empty( $customer_orders ) ) {
 			return;
@@ -201,7 +237,7 @@ class FakeCustomerDetection {
 				update_post_meta( $customer_order_id, '_wsa_risk_score',            $result['score'] );
 				update_post_meta( $customer_order_id, '_wsa_risk_signals',          wp_json_encode( $result['signals'] ) );
 				update_post_meta( $customer_order_id, '_wsa_risk_summary',          $result['summary'] );
-				update_post_meta( $customer_order_id, '_wsa_risk_status',           'done' );
+				update_post_meta( $customer_order_id, '_wsa_risk_status',           'completed' );
 				update_post_meta( $customer_order_id, '_wsa_risk_calculated_at',    current_time( 'mysql' ) );
 			}
 		}

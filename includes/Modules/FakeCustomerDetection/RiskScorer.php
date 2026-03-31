@@ -18,10 +18,32 @@ class RiskScorer {
 	 * @param bool $bypass_cache Bypass cache for fresh API data
 	 * @return array|false Array with score, signals, and summary
 	 */
+	/**
+	 * Check that an order is a real WC_Order (not a WC_Order_Refund).
+	 * Refund objects don't have billing methods and will cause fatal errors.
+	 *
+	 * @param mixed $order
+	 * @return bool
+	 */
+	private function is_real_order( $order ) {
+		if ( ! $order ) {
+			return false;
+		}
+		// Refund objects are a subclass — they have no billing phone/email
+		if ( $order instanceof \WC_Order_Refund ) {
+			return false;
+		}
+		// Double-check using get_type() which is available on all order objects
+		if ( method_exists( $order, 'get_type' ) && $order->get_type() === 'shop_order_refund' ) {
+			return false;
+		}
+		return true;
+	}
+
 	public function calculate_score( $order_id, $bypass_cache = false ) {
 		$order = wc_get_order( $order_id );
 		
-		if ( ! $order ) {
+		if ( ! $this->is_real_order( $order ) ) {
 			return false;
 		}
 
@@ -35,8 +57,15 @@ class RiskScorer {
 		$customer_id = $order->get_customer_id();
 		$ip_address = $order->get_customer_ip_address();
 
-		// Get customer order history
-		$customer_orders = $this->get_customer_orders( $email, $customer_id, $order_id );
+		// Get customer order history:
+		// $identity_orders — only orders matched by customer_id OR email (reliable identity)
+		// $phone_orders   — orders matched by phone number only (for phone verification check)
+		// We intentionally keep them SEPARATE to avoid falsely attributing other
+		// guest customers' cancellations/completions when they share the same phone.
+		$identity_orders = $this->get_orders_by_identity( $email, $customer_id, $order_id );
+		$phone_orders    = $this->get_orders_by_phone( $phone, $order_id, $identity_orders );
+		// Combined set only used for full de-duplication purposes (e.g., duplicate detection)
+		$customer_orders = array_unique( array_merge( $identity_orders, $phone_orders ) );
 
 		// Store bypass_cache for use in check methods
 		$this->bypass_cache = $bypass_cache;
@@ -49,16 +78,19 @@ class RiskScorer {
 			$negative_signals[] = 'Invalid phone number format detected';
 		}
 
-		// 2. Cancelled/Failed Orders
-		$cancelled_count = $this->count_orders_by_status( $customer_orders, [ 'cancelled', 'failed' ] );
+		// 2. Cancelled/Failed Orders (on your website)
+		// IMPORTANT: Only count identity-verified orders (by customer_id / email).
+		// Phone-matched orders may belong to different people sharing the same number.
+		$cancelled_count = $this->count_orders_by_status( $identity_orders, [ 'cancelled', 'failed' ] );
 		if ( $cancelled_count > 0 ) {
-			$points = min( $cancelled_count * 15, 60 );
+			$points = min( $cancelled_count * 10, 40 );
 			$score += $points;
-			$negative_signals[] = sprintf( '%d previous cancelled/failed orders found', $cancelled_count );
+			$negative_signals[] = sprintf( '%d previous cancelled/failed orders on this store', $cancelled_count );
 		}
 
 		// 3. Courier Returns (refunded or specific courier return statuses)
-		$return_count = $this->count_courier_returns( $customer_orders );
+		// Only on identity-verified orders for the same reason.
+		$return_count = $this->count_courier_returns( $identity_orders );
 		if ( $return_count > 0 ) {
 			$score += ( $return_count * 30 );
 			$negative_signals[] = sprintf( '%d courier returns found (customer refused)', $return_count );
@@ -73,13 +105,13 @@ class RiskScorer {
 			}
 		}
 
-		// 5. High Cancellation Rate
-		$total_orders = count( $customer_orders );
-		if ( $total_orders >= 3 ) {
-			$cancellation_rate = $cancelled_count / $total_orders;
-			if ( $cancellation_rate > 0.5 ) {
-				$score += 20;
-				$negative_signals[] = sprintf( 'High cancellation rate: %d%%', round( $cancellation_rate * 100 ) );
+		// 5. High Cancellation Rate (identity-verified orders only)
+		$total_identity_orders = count( $identity_orders );
+		if ( $total_identity_orders >= 5 ) {
+			$cancellation_rate = $cancelled_count / $total_identity_orders;
+			if ( $cancellation_rate > 0.7 ) {
+				$score += 15;
+				$negative_signals[] = sprintf( 'Very high store cancellation rate: %d%%', round( $cancellation_rate * 100 ) );
 			}
 		}
 
@@ -112,30 +144,31 @@ class RiskScorer {
 		}
 
 		// ✅ POSITIVE SIGNALS
-		
-		// 1. Successful Deliveries
-		$completed_count = $this->count_orders_by_status( $customer_orders, [ 'completed' ] );
+
+		// 1. Successful Deliveries (identity-verified orders only)
+		$completed_count = $this->count_orders_by_status( $identity_orders, [ 'completed' ] );
 		if ( $completed_count > 0 ) {
-			$score -= ( $completed_count * 20 );
-			$positive_signals[] = sprintf( '%d successful deliveries found', $completed_count );
+			$score -= min( $completed_count * 20, 60 ); // cap at -60
+			$positive_signals[] = sprintf( '%d successful order(s) on this store', $completed_count );
 		}
 
-		// 2. Stable History (active for > 6 months with successful orders)
-		if ( $this->has_stable_history( $customer_orders, $completed_count ) ) {
+		// 2. Stable History (identity-verified orders, active for > 6 months)
+		if ( $this->has_stable_history( $identity_orders, $completed_count ) ) {
 			$score -= 15;
-			$positive_signals[] = 'Customer has stable 6+ month history';
+			$positive_signals[] = 'Customer has stable 6+ month history on this store';
 		}
 
-		// 3. Verified Phone (phone used in completed order)
-		if ( $this->is_verified_phone( $phone, $customer_orders ) ) {
+		// 3. Verified Phone:
+		// Check identity orders first (stronger signal), then phone orders as fallback
+		if ( $this->is_verified_phone( $phone, $identity_orders ) || $this->is_verified_phone( $phone, $phone_orders ) ) {
 			$score -= 10;
-			$positive_signals[] = 'Phone number previously verified in completed order';
+			$positive_signals[] = 'Phone number verified in a previous completed order';
 		}
 
-		// 4. Low Return Rate
-		if ( $return_count === 0 && $total_orders > 0 ) {
+		// 4. Low Return Rate (identity-verified orders)
+		if ( $return_count === 0 && $total_identity_orders > 0 ) {
 			$score -= 10;
-			$positive_signals[] = 'No courier returns found';
+			$positive_signals[] = 'No courier returns on this store';
 		}
 
 		// 🆕 5. FraudPeek Multi-Courier Score (Cross-Merchant Data)
@@ -171,21 +204,65 @@ class RiskScorer {
 
 	/**
 	 * Get customer's previous orders (excluding current order)
+	 * Matches by Customer ID, Email, or Phone Number
 	 */
-	private function get_customer_orders( $email, $customer_id, $exclude_order_id ) {
+	/**
+	 * Get orders matched by the customer's registered identity (customer_id or email).
+	 * These are authoritative — they definitely belong to this customer.
+	 *
+	 * @param string $email
+	 * @param int    $customer_id
+	 * @param int    $exclude_order_id
+	 * @return int[]
+	 */
+	private function get_orders_by_identity( $email, $customer_id, $exclude_order_id ) {
 		$args = [
 			'limit'   => -1,
 			'exclude' => [ $exclude_order_id ],
 			'return'  => 'ids',
+			'type'    => 'shop_order',
 		];
 
 		if ( $customer_id > 0 ) {
 			$args['customer_id'] = $customer_id;
-		} else {
+		} elseif ( ! empty( $email ) ) {
 			$args['billing_email'] = $email;
+		} else {
+			// No reliable identity — return empty
+			return [];
 		}
 
-		return wc_get_orders( $args );
+		$ids = wc_get_orders( $args );
+		return is_array( $ids ) ? $ids : [];
+	}
+
+	/**
+	 * Get orders matched by phone number ONLY (not overlapping with identity orders).
+	 * Phone is NOT a unique identifier — multiple people can share a number.
+	 * Only use this for phone-verification checks, NOT for history signals.
+	 *
+	 * @param string $phone
+	 * @param int    $exclude_order_id
+	 * @param int[]  $already_found IDs already found via identity — exclude from this set
+	 * @return int[]
+	 */
+	private function get_orders_by_phone( $phone, $exclude_order_id, $already_found = [] ) {
+		if ( empty( $phone ) ) {
+			return [];
+		}
+
+		$exclude = array_merge( [ $exclude_order_id ], $already_found );
+
+		$phone_args = [
+			'limit'         => -1,
+			'exclude'       => $exclude,
+			'billing_phone' => $phone,
+			'return'        => 'ids',
+			'type'          => 'shop_order',
+		];
+
+		$ids = wc_get_orders( $phone_args );
+		return is_array( $ids ) ? $ids : [];
 	}
 
 	/**
@@ -196,7 +273,7 @@ class RiskScorer {
 		
 		foreach ( $order_ids as $order_id ) {
 			$order = wc_get_order( $order_id );
-			if ( $order && in_array( $order->get_status(), $statuses, true ) ) {
+			if ( $this->is_real_order( $order ) && in_array( $order->get_status(), $statuses, true ) ) {
 				$count++;
 			}
 		}
@@ -213,7 +290,7 @@ class RiskScorer {
 		foreach ( $order_ids as $order_id ) {
 			$order = wc_get_order( $order_id );
 			
-			if ( ! $order ) {
+			if ( ! $this->is_real_order( $order ) ) {
 				continue;
 			}
 
@@ -300,7 +377,7 @@ class RiskScorer {
 		foreach ( $order_ids as $order_id ) {
 			$order = wc_get_order( $order_id );
 			
-			if ( $order && 
+			if ( $this->is_real_order( $order ) && 
 			     $order->get_status() === 'completed' && 
 			     $order->get_billing_phone() === $phone ) {
 				return true;
@@ -494,10 +571,10 @@ class RiskScorer {
 			$score += 5;
 			$signals[] = 'No delivery history found across any courier (new customer)';
 		} elseif ( $ai_score >= 90 ) {
-			$score -= 30;
-			$signals[] = sprintf( 'FraudPeek AI: Trusted customer (score %d/100)', $ai_score );
+			$score -= 40; // Increased from -30
+			$signals[] = sprintf( 'FraudPeek AI: Highly trusted customer (score %d/100)', $ai_score );
 		} elseif ( $ai_score >= 75 ) {
-			$score -= 15;
+			$score -= 25; // Increased from -15
 			$signals[] = sprintf( 'FraudPeek AI: Low risk customer (score %d/100)', $ai_score );
 		} elseif ( $ai_score >= 50 ) {
 			$score += 10;

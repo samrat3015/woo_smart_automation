@@ -72,6 +72,11 @@ class AdminIntegration {
 		$is_duplicate = get_post_meta( $order_id, '_wsa_is_potential_duplicate', true );
 		$signals_data = $signals ? json_decode( $signals, true ) : [];
 
+		// FraudPeek data for cell overrides
+		$fp_available  = get_post_meta( $order_id, '_wsa_fp_available', true );
+		$fp_risk_score = get_post_meta( $order_id, '_wsa_fp_risk_score', true );
+		$fp_risk_level = get_post_meta( $order_id, '_wsa_fp_risk_level', true );
+
 		// Show async pending/processing/failed badge (with manual recheck option)
 		if ( $score === '' || $risk_status === 'pending' || $risk_status === 'processing' || $risk_status === 'failed' ) {
 			if ( $risk_status === 'processing' ) {
@@ -99,8 +104,15 @@ class AdminIntegration {
 			return;
 		}
 
-		$risk_class = $this->get_risk_class( $score );
-		$risk_level = $this->get_risk_level( $score );
+		// Use FraudPeek score if available
+		$display_score = ( $fp_available === '1' ) ? $fp_risk_score : $score;
+		$risk_class    = $this->get_risk_class( (int) $display_score );
+		$risk_level    = ( $fp_available === '1' && ! empty( $fp_risk_level ) ) ? ucfirst( $fp_risk_level ) : $this->get_risk_level( (int) $display_score );
+
+		// If FraudPeek says it's Low risk even if score is high (like 100), respect that level
+		if ( $fp_available === '1' && strtolower( $fp_risk_level ) === 'low' ) {
+			$risk_class = 'very-low';
+		}
 
 		// Build inline tooltip content
 		$tooltip_lines = [];
@@ -114,7 +126,6 @@ class AdminIntegration {
 				$tooltip_lines[] = '✅ ' . $sig;
 			}
 		}
-		$tooltip_text = implode( '\n', $tooltip_lines );
 
 		?>
 		<div class="wsa-risk-container" data-order-id="<?php echo esc_attr( $order_id ); ?>">
@@ -122,8 +133,8 @@ class AdminIntegration {
 			<div class="wsa-risk-progress-bar wsa-view-details"
 				 data-order-id="<?php echo esc_attr( $order_id ); ?>"
 				 title="Click to view full details">
-				<div class="wsa-progress-fill wsa-risk-<?php echo esc_attr( $risk_class ); ?>" style="width: <?php echo esc_attr( $score ); ?>%;">
-					<span class="wsa-score-label"><?php echo esc_html( $score ); ?></span>
+				<div class="wsa-progress-fill wsa-risk-<?php echo esc_attr( $risk_class ); ?>" style="width: <?php echo esc_attr( $display_score ); ?>%;">
+					<span class="wsa-score-label"><?php echo esc_html( $display_score ); ?></span>
 				</div>
 			</div>
 
@@ -142,7 +153,7 @@ class AdminIntegration {
 				<div class="wsa-risk-tooltip">
 					<div class="wsa-tooltip-header">
 						<strong><?php echo esc_html( $risk_level ); ?></strong>
-						<span class="wsa-tooltip-score"><?php echo esc_html( $score ); ?>/100</span>
+						<span class="wsa-tooltip-score"><?php echo esc_html( $display_score ); ?>/100</span>
 					</div>
 					<ul class="wsa-tooltip-signals">
 						<?php foreach ( $tooltip_lines as $line ) : ?>
@@ -272,6 +283,27 @@ class AdminIntegration {
 		$fp_fetched_at    = get_post_meta( $order_id, '_wsa_fp_fetched_at', true );
 		$fp_data_source   = get_post_meta( $order_id, '_wsa_fp_data_source', true );
 
+		// ── Override with FraudPeek if available ─────────────────────────────
+		if ( $fp_available === '1' ) {
+			$display_score = (int) $fp_risk_score;
+			$display_level = ucfirst( (string) $fp_risk_level );
+			
+			// Use more accurate FraudPeek logic for classes
+			$fp_level_low = strtolower( (string) $fp_risk_level );
+			if ( in_array( $fp_level_low, [ 'low', 'very low', 'very_low' ], true ) ) {
+				$risk_class = 'very-low';
+			} elseif ( $fp_level_low === 'medium' ) {
+				$risk_class = 'medium';
+			} elseif ( $fp_level_low === 'high' ) {
+				$risk_class = 'high';
+			} elseif ( in_array( $fp_level_low, [ 'critical', 'very high', 'very_high' ], true ) ) {
+				$risk_class = 'critical';
+			}
+		} else {
+			$display_score = $score;
+			$display_level = $risk_level;
+		}
+
 		// ── Build Modal HTML ─────────────────────────────────────────────────
 		$html = '<div class="wsa-risk-details-modal wsa-v2">';
 
@@ -287,8 +319,8 @@ class AdminIntegration {
 		$html .= '</div>';
 		$html .= '<div class="wsa-hdr-right">';
 		$html .= '<div class="wsa-score-ring wsa-ring-' . esc_attr( $risk_class ) . '">';
-		$html .= '<div class="wsa-ring-num">' . esc_html( $score ) . '</div>';
-		$html .= '<div class="wsa-ring-lbl">' . esc_html( $risk_level ) . '</div>';
+		$html .= '<div class="wsa-ring-num">' . esc_html( (string) $display_score ) . '</div>';
+		$html .= '<div class="wsa-ring-lbl">' . esc_html( $display_level ) . '</div>';
 		$html .= '</div>';
 		$html .= '</div>';
 		$html .= '</div>';
@@ -308,13 +340,46 @@ class AdminIntegration {
 		$html .= '</div>';
 		$html .= '</div>';
 		$html .= '<button type="button" class="wsa-fp-btn wsa-recalculate-btn" data-order-id="' . esc_attr( $order_id ) . '">';
-		$html .= '<span>⚡</span> Refresh</button>';
+		$html .= '<span>⚡</span> Refresh Data</button>';
 		$html .= '</div>';
 
-		// ── FraudPeek Data ───────────────────────────────────────────────
 		if ( $fp_available === '1' ) {
+			// Professional Progress Bar Row
+			$html .= '<div class="wsa-m-row wsa-m-prog-row">';
+			$html .= '<div class="wsa-m-prog-info">';
+			$html .= '<span class="wsa-m-prog-label">FraudPeak Risk Exposure</span>';
+			$html .= '<span class="wsa-m-prog-val">' . esc_html( $display_score ) . '%</span>';
+			$html .= '</div>';
+			$html .= '<div class="wsa-m-prog-track">';
+			$html .= '<div class="wsa-m-prog-bar wsa-prog-' . esc_attr( $risk_class ) . '" style="width:' . esc_attr( $display_score ) . '%"></div>';
+			$html .= '</div>';
+			$html .= '</div>';
 
-			$fp_level_lower = strtolower( $fp_risk_level ?: 'unknown' );
+			// Delivery Rate Progress Bar
+			$html .= '<div class="wsa-m-row wsa-m-prog-row" style="margin-top: 10px;">';
+			$html .= '<div class="wsa-m-prog-info">';
+			$html .= '<span class="wsa-m-prog-label">Delivery Rate</span>';
+			$html .= '<span class="wsa-m-prog-val">' . esc_html( $fp_delivery_rate ) . '%</span>';
+			$html .= '</div>';
+			$html .= '<div class="wsa-m-prog-track">';
+			$dr_cls = (float)$fp_delivery_rate >= 80 ? 'low' : ((float)$fp_delivery_rate >= 50 ? 'medium' : 'critical');
+			$html .= '<div class="wsa-m-prog-bar wsa-prog-' . esc_attr($dr_cls) . '" style="width:' . esc_attr( $fp_delivery_rate ) . '%"></div>';
+			$html .= '</div>';
+			$html .= '</div>';
+
+			// Return Rate Progress Bar
+			$html .= '<div class="wsa-m-row wsa-m-prog-row" style="margin-top: 10px; margin-bottom: 20px;">';
+			$html .= '<div class="wsa-m-prog-info">';
+			$html .= '<span class="wsa-m-prog-label">Return Rate</span>';
+			$html .= '<span class="wsa-m-prog-val">' . esc_html( $fp_return_rate ) . '%</span>';
+			$html .= '</div>';
+			$html .= '<div class="wsa-m-prog-track">';
+			$rr_cls = (float)$fp_return_rate <= 10 ? 'low' : ((float)$fp_return_rate <= 30 ? 'medium' : 'critical');
+			$html .= '<div class="wsa-m-prog-bar wsa-prog-' . esc_attr($rr_cls) . '" style="width:' . esc_attr( $fp_return_rate ) . '%"></div>';
+			$html .= '</div>';
+			$html .= '</div>';
+
+			$fp_level_lower = strtolower( (string) $fp_risk_level ?: 'unknown' );
 			$fp_cls = 'medium';
 			if ( in_array( $fp_level_lower, [ 'low', 'very low', 'very_low' ], true ) ) {
 				$fp_cls = 'low';
@@ -327,40 +392,41 @@ class AdminIntegration {
 			// Score cards row
 			$html .= '<div class="wsa-cards-row">';
 			$html .= '<div class="wsa-card wsa-card-' . esc_attr( $fp_cls ) . '">';
-			$html .= '<div class="wsa-card-lbl">Risk Level</div>';
-			$html .= '<div class="wsa-card-val">' . esc_html( ucfirst( $fp_risk_level ) ) . '</div>';
+			$html .= '<div class="wsa-card-lbl">Fraud Risk</div>';
+			$html .= '<div class="wsa-card-val">' . esc_html( ucfirst( (string) $fp_risk_level ) ) . '</div>';
 			$html .= '</div>';
 			$html .= '<div class="wsa-card wsa-card-blue">';
 			$html .= '<div class="wsa-card-lbl">FP Score</div>';
-			$html .= '<div class="wsa-card-val">' . esc_html( $fp_risk_score ) . '<small>/100</small></div>';
+			$html .= '<div class="wsa-card-val">' . esc_html( (string) $fp_risk_score ) . '<small>/100</small></div>';
 			$html .= '</div>';
 			$html .= '<div class="wsa-card wsa-card-purple">';
-			$html .= '<div class="wsa-card-lbl">AI Score</div>';
-			$html .= '<div class="wsa-card-val">' . esc_html( $fp_ai_score ) . '<small>/100</small></div>';
+			$html .= '<div class="wsa-card-lbl">AI Confidence</div>';
+			$ai_score_val = (int) $fp_ai_score;
+			$html .= '<div class="wsa-card-val">' . esc_html( (string) $ai_score_val ) . '<small>%</small></div>';
 			$html .= '</div>';
 			$html .= '</div>';
 
 			// Stats grid
-			$html .= '<div class="wsa-sec-title"><span>📊</span> Delivery Statistics</div>';
+			$html .= '<div class="wsa-sec-title"><span>📊</span> Delivery Reliability</div>';
 			$html .= '<div class="wsa-stats-grid">';
-			$html .= $this->stat_card( '📦', 'Total Parcels', $fp_total, 'neutral' );
-			$html .= $this->stat_card( '✅', 'Delivered', $fp_delivered, 'success' );
-			$html .= $this->stat_card( '❌', 'Cancelled', $fp_cancelled, ( (int) $fp_cancelled > 0 ? 'danger' : 'success' ) );
-			$html .= $this->stat_card( '↩️', 'Returned', $fp_returned, ( (int) $fp_returned > 0 ? 'warning' : 'success' ) );
-			$html .= $this->stat_card( '📈', 'Delivery Rate', $fp_delivery_rate . '%', ( (float) $fp_delivery_rate >= 80 ? 'success' : ( (float) $fp_delivery_rate >= 50 ? 'warning' : 'danger' ) ) );
-			$html .= $this->stat_card( '📉', 'Return Rate', $fp_return_rate . '%', ( (float) $fp_return_rate <= 10 ? 'success' : ( (float) $fp_return_rate <= 30 ? 'warning' : 'danger' ) ) );
-			$html .= $this->stat_card( '🚨', 'Fraud Alerts', $fp_fraud_alerts, ( (int) $fp_fraud_alerts > 0 ? 'danger' : 'success' ) );
-			$html .= $this->stat_card( '📝', 'Reports', $fp_reports, ( (int) $fp_reports > 0 ? 'warning' : 'success' ) );
-			$html .= $this->stat_card( '🚚', 'Couriers', $fp_sources, 'neutral' );
+			$html .= $this->stat_card( '📦', 'Total Parcels', $fp_total, 'indigo' );
+			$html .= $this->stat_card( '✅', 'Delivered', $fp_delivered, 'green' );
+			$html .= $this->stat_card( '❌', 'Cancelled', $fp_cancelled, 'red' ); // Always red
+			$html .= $this->stat_card( '↩️', 'Returned', $fp_returned, 'orange' ); // Always orange
+			$html .= $this->stat_card( '', 'Fraud Alerts', $fp_fraud_alerts, 'red' ); // Always red
+			$html .= $this->stat_card( '📝', 'Reports', $fp_reports, 'amber' ); // Always amber
+			$html .= $this->stat_card( '🚚', 'Couriers', $fp_sources, 'purple' );
 			$html .= '</div>';
 
-			// AI Summary
+			// AI Summary (REMOVED as per user request)
+			/*
 			if ( $fp_ai_summary ) {
 				$html .= '<div class="wsa-ai-card">';
 				$html .= '<div class="wsa-ai-hdr"><span>🤖</span> AI Analysis</div>';
 				$html .= '<div class="wsa-ai-txt">' . esc_html( $fp_ai_summary ) . '</div>';
 				$html .= '</div>';
 			}
+			*/
 
 			// Risk Message
 			if ( $fp_risk_msg ) {

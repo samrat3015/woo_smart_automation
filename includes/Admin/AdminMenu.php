@@ -796,8 +796,8 @@ class AdminMenu {
 						<div class="settings-field-row">
 							<label class="field-label">Risk Score Threshold</label>
 							<div class="field-input">
-								<input type="number" name="wsa_auto_action_score" value="<?php echo esc_attr( get_option( 'wsa_auto_action_score', '80' ) ); ?>" class="settings-input" min="0" max="100" />
-								<p class="field-description">Minimum score (0-100) to trigger the action. Default is 80.</p>
+								<input type="number" name="wsa_auto_action_score" value="<?php echo esc_attr( get_option( 'wsa_auto_action_score', '20' ) ); ?>" class="settings-input" min="0" max="100" />
+								<p class="field-description">If the customer's delivery score is <strong>BELOW</strong> this number (Low Delivery Rate), the auto-action will trigger.</p>
 							</div>
 						</div>
 						<div class="settings-field-row">
@@ -810,7 +810,7 @@ class AdminMenu {
 										</option>
 									<?php endforeach; ?>
 								</select>
-								<p class="field-description">The status to set when threshold is exceeded (e.g. On Hold or Cancelled).</p>
+								<p class="field-description">The status to set when the delivery score is below the threshold.</p>
 							</div>
 						</div>
 					</div>

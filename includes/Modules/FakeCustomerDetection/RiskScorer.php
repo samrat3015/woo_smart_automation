@@ -171,19 +171,16 @@ class RiskScorer {
 			$positive_signals[] = 'No courier returns on this store';
 		}
 
-		// 🆕 5. FraudPeek Multi-Courier Score (Cross-Merchant Data)
-		$courier_check = $this->check_fraudpeek_score( $order );
+		// 5. Courier Intelligence (Multi-courier Cross-Merchant Data)
+		$courier_check = $this->check_courier_intelligence( $order );
 		$score += $courier_check['score'];
-		
-		// Add courier signals to appropriate array
-		if ( ! empty( $courier_check['signals'] ) ) {
-			foreach ( $courier_check['signals'] as $signal ) {
-				if ( $courier_check['score'] < 0 ) {
-					$positive_signals[] = $signal;
-				} else {
-					$negative_signals[] = $signal;
-				}
-			}
+
+		// Merge courier signals into correct positive/negative buckets
+		foreach ( $courier_check['positive_signals'] as $sig ) {
+			$positive_signals[] = $sig;
+		}
+		foreach ( $courier_check['negative_signals'] as $sig ) {
+			$negative_signals[] = $sig;
 		}
 
 		// Clamp score between 0 and 100
@@ -495,16 +492,15 @@ class RiskScorer {
 	}
 
 	/**
-	 * Check FraudPeek multi-courier fraud score (Cross-Merchant Data)
+	 * Check multi-courier intelligence score (Cross-Merchant Data)
 	 *
-	 * Uses the FraudPeek API which aggregates delivery history from multiple
-	 * couriers (Steadfast, Pathao, RedX, CarryBee, etc.) and applies AI-powered
-	 * risk scoring. This replaces the old single-courier Steadfast approach.
+	 * Aggregates delivery history from multiple couriers and applies AI-powered
+	 * risk scoring. Returns separate positive and negative signal arrays.
 	 *
 	 * @param \WC_Order $order The order object
-	 * @return array Array with 'score' (int, can be negative) and 'signals' (string[])
+	 * @return array Array with 'score', 'positive_signals', 'negative_signals'
 	 */
-	private function check_fraudpeek_score( $order ) {
+	private function check_courier_intelligence( $order ) {
 		$phone        = $order->get_billing_phone();
 		$order_id     = $order->get_id();
 		$bypass_cache = isset( $this->bypass_cache ) ? $this->bypass_cache : false;
@@ -518,10 +514,10 @@ class RiskScorer {
 		if ( ! $fp ) {
 			// API unavailable — store empty marker and return neutral
 			update_post_meta( $order_id, '_wsa_fp_available', '0' );
-			return [ 'score' => 0, 'signals' => [] ];
+			return [ 'score' => 0, 'positive_signals' => [], 'negative_signals' => [] ];
 		}
 
-		// ── Persist all FraudPeek fields as order meta (for admin display) ──
+		// ── Persist all fields as order meta (for admin display) ──
 		update_post_meta( $order_id, '_wsa_fp_available',           '1' );
 		update_post_meta( $order_id, '_wsa_fp_risk_score',          $fp['risk_score'] );
 		update_post_meta( $order_id, '_wsa_fp_ai_risk_score',       $fp['ai_risk_score'] );
@@ -541,16 +537,17 @@ class RiskScorer {
 		update_post_meta( $order_id, '_wsa_fp_data_source',         $fp['data_source'] );
 		update_post_meta( $order_id, '_wsa_fp_fetched_at',          $fp['fetched_at'] );
 
-		// ── Legacy meta (used by existing admin column display) ──
+		// Legacy meta
 		update_post_meta( $order_id, '_wsa_courier_total_orders',   $fp['total_parcels'] );
 		update_post_meta( $order_id, '_wsa_courier_delivered',      $fp['delivered_parcels'] );
 		update_post_meta( $order_id, '_wsa_courier_cancelled',      $fp['cancelled_parcels'] );
 		update_post_meta( $order_id, '_wsa_courier_success_rate',   $fp['average_delivery_rate'] );
-		update_post_meta( $order_id, '_wsa_courier_data_source',    'fraudpeek' );
+		update_post_meta( $order_id, '_wsa_courier_data_source',    'courier_intelligence' );
 
-		// ── Risk scoring based on FraudPeek data ──
-		$score   = 0;
-		$signals = [];
+		// ── Risk scoring ──
+		$score            = 0;
+		$positive_signals = [];
+		$negative_signals = [];
 
 		$total         = $fp['total_parcels'];
 		$delivery_rate = $fp['average_delivery_rate'];  // 0–100
@@ -560,113 +557,110 @@ class RiskScorer {
 		$cancelled     = $fp['cancelled_parcels'];
 		$returned      = $fp['returned_parcels'];
 		$ai_score      = $fp['ai_risk_score'];          // 0–100 (higher = safer)
-		$risk_level    = strtolower( $fp['risk_level'] );
 		$courier_count = $fp['courier_sources'];
 
-		// ── 1. FraudPeek AI score — primary signal ──────────────────────────
-		// FraudPeek's ai_risk_score 100 = perfectly safe, 0 = very dangerous.
-		// We convert it to our scale where higher = more risky.
+		// ── 1. AI score — primary signal ─────────────────────────────────────
 		if ( $total === 0 ) {
-			// No delivery history found across any courier
 			$score += 5;
-			$signals[] = 'No delivery history found across any courier (new customer)';
+			$negative_signals[] = 'No delivery history found across any courier (new customer)';
 		} elseif ( $ai_score >= 90 ) {
-			$score -= 40; // Increased from -30
-			$signals[] = sprintf( 'FraudPeek AI: Highly trusted customer (score %d/100)', $ai_score );
+			$score -= 40;
+			$positive_signals[] = sprintf( 'AI Score: Highly trusted customer (%d/100)', $ai_score );
 		} elseif ( $ai_score >= 75 ) {
-			$score -= 25; // Increased from -15
-			$signals[] = sprintf( 'FraudPeek AI: Low risk customer (score %d/100)', $ai_score );
+			$score -= 25;
+			$positive_signals[] = sprintf( 'AI Score: Low risk customer (%d/100)', $ai_score );
 		} elseif ( $ai_score >= 50 ) {
 			$score += 10;
-			$signals[] = sprintf( 'FraudPeek AI: Moderate risk (score %d/100)', $ai_score );
+			$negative_signals[] = sprintf( 'AI Score: Moderate risk (%d/100)', $ai_score );
 		} elseif ( $ai_score >= 30 ) {
 			$score += 30;
-			$signals[] = sprintf( 'FraudPeek AI: High risk customer (score %d/100)', $ai_score );
+			$negative_signals[] = sprintf( 'AI Score: High risk customer (%d/100)', $ai_score );
 		} else {
 			$score += 50;
-			$signals[] = sprintf( 'FraudPeek AI: Critical risk customer (score %d/100)', $ai_score );
+			$negative_signals[] = sprintf( 'AI Score: Critical risk customer (%d/100)', $ai_score );
 		}
 
-		// ── 2. Fraud Alerts (direct fraud reports) ───────────────────────────
+		// ── 2. Fraud Alerts ───────────────────────────────────────────────────
 		if ( $fraud_alerts > 0 ) {
 			$penalty = min( $fraud_alerts * 20, 60 );
 			$score  += $penalty;
-			$signals[] = sprintf( '%d fraud alert(s) on record across couriers', $fraud_alerts );
+			$negative_signals[] = sprintf( '%d fraud alert(s) on record across couriers', $fraud_alerts );
 		}
 
-		// ── 3. Community Reports ─────────────────────────────────────────────
+		// ── 3. Community Reports ──────────────────────────────────────────────
 		if ( $report_count > 0 ) {
 			$score += min( $report_count * 10, 30 );
-			$signals[] = sprintf( '%d fraud report(s) submitted by merchants', $report_count );
+			$negative_signals[] = sprintf( '%d fraud report(s) submitted by merchants', $report_count );
 		}
 
-		// ── 4. Delivery Rate ─────────────────────────────────────────────────
+		// ── 4. Delivery Rate ──────────────────────────────────────────────────
 		if ( $total > 0 ) {
 			if ( $delivery_rate >= 95 ) {
-				$score   -= 20;
-				$signals[] = sprintf( 'Excellent delivery rate: %.0f%% across %d couriers', $delivery_rate, $courier_count );
+				$score -= 20;
+				$positive_signals[] = sprintf( 'Excellent delivery rate: %.0f%% across %d couriers', $delivery_rate, $courier_count );
 			} elseif ( $delivery_rate >= 80 ) {
-				$score   -= 10;
-				$signals[] = sprintf( 'Good delivery rate: %.0f%%', $delivery_rate );
+				$score -= 10;
+				$positive_signals[] = sprintf( 'Good delivery rate: %.0f%%', $delivery_rate );
 			} elseif ( $delivery_rate >= 60 ) {
-				$score   += 10;
-				$signals[] = sprintf( 'Average delivery rate: %.0f%%', $delivery_rate );
+				$score += 10;
+				$negative_signals[] = sprintf( 'Average delivery rate: %.0f%%', $delivery_rate );
 			} elseif ( $delivery_rate >= 40 ) {
-				$score   += 25;
-				$signals[] = sprintf( 'Low delivery rate: %.0f%% — high return risk', $delivery_rate );
+				$score += 25;
+				$negative_signals[] = sprintf( 'Low delivery rate: %.0f%% — high return risk', $delivery_rate );
 			} else {
-				$score   += 45;
-				$signals[] = sprintf( 'Very low delivery rate: %.0f%% — very high return risk', $delivery_rate );
+				$score += 45;
+				$negative_signals[] = sprintf( 'Very low delivery rate: %.0f%% — very high return risk', $delivery_rate );
 			}
 		}
 
-		// ── 5. Return Rate ───────────────────────────────────────────────────
+		// ── 5. Return Rate ────────────────────────────────────────────────────
 		if ( $return_rate > 20 ) {
-			$score   += 20;
-			$signals[] = sprintf( 'High return rate: %.0f%%', $return_rate );
+			$score += 20;
+			$negative_signals[] = sprintf( 'High return rate: %.0f%%', $return_rate );
 		} elseif ( $return_rate > 10 ) {
-			$score   += 10;
-			$signals[] = sprintf( 'Elevated return rate: %.0f%%', $return_rate );
+			$score += 10;
+			$negative_signals[] = sprintf( 'Elevated return rate: %.0f%%', $return_rate );
 		} elseif ( $return_rate === 0.0 && $total >= 3 ) {
-			$score   -= 10;
-			$signals[] = 'Zero return rate — customer accepts all deliveries';
+			$score -= 10;
+			$positive_signals[] = 'Zero return rate — customer accepts all deliveries';
 		}
 
-		// ── 6. Cancellations ─────────────────────────────────────────────────
+		// ── 6. Cancellations ──────────────────────────────────────────────────
 		if ( $cancelled > 10 ) {
-			$score   += 25;
-			$signals[] = sprintf( '%d parcels cancelled across all couriers', $cancelled );
+			$score += 25;
+			$negative_signals[] = sprintf( '%d parcels cancelled across all couriers', $cancelled );
 		} elseif ( $cancelled > 4 ) {
-			$score   += 12;
-			$signals[] = sprintf( '%d parcels cancelled across all couriers', $cancelled );
+			$score += 12;
+			$negative_signals[] = sprintf( '%d parcels cancelled across all couriers', $cancelled );
 		}
 
-		// ── 7. Returned parcels ──────────────────────────────────────────────
+		// ── 7. Returned parcels ───────────────────────────────────────────────
 		if ( $returned > 5 ) {
-			$score   += 20;
-			$signals[] = sprintf( '%d parcels returned across couriers', $returned );
+			$score += 20;
+			$negative_signals[] = sprintf( '%d parcels returned across couriers', $returned );
 		} elseif ( $returned > 2 ) {
-			$score   += 10;
-			$signals[] = sprintf( '%d parcels returned across couriers', $returned );
+			$score += 10;
+			$negative_signals[] = sprintf( '%d parcels returned across couriers', $returned );
 		}
 
 		// ── 8. Volume + Trust bonus ───────────────────────────────────────────
 		if ( $total >= 30 && $delivery_rate >= 90 ) {
-			$score   -= 15;
-			$signals[] = sprintf( 'Highly trusted: %d total parcels, %.0f%% delivery rate', $total, $delivery_rate );
+			$score -= 15;
+			$positive_signals[] = sprintf( 'Highly trusted: %d total parcels, %.0f%% delivery rate', $total, $delivery_rate );
 		} elseif ( $total >= 10 && $delivery_rate >= 85 ) {
-			$score   -= 8;
-			$signals[] = sprintf( 'Trusted customer: %d parcels, %.0f%% delivery rate', $total, $delivery_rate );
+			$score -= 8;
+			$positive_signals[] = sprintf( 'Trusted customer: %d parcels, %.0f%% delivery rate', $total, $delivery_rate );
 		}
 
 		// ── 9. Multi-courier coverage ─────────────────────────────────────────
 		if ( $courier_count >= 3 ) {
-			$signals[] = sprintf( 'Data verified across %d different couriers', $courier_count );
+			$positive_signals[] = sprintf( 'Data verified across %d different couriers', $courier_count );
 		}
 
 		return [
-			'score'   => $score,
-			'signals' => $signals,
+			'score'            => $score,
+			'positive_signals' => $positive_signals,
+			'negative_signals' => $negative_signals,
 		];
 	}
 }

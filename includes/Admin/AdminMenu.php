@@ -399,11 +399,12 @@ class AdminMenu {
 	 */
 	public function sanitize_steadfast_status_map( $input ) {
 		$defaults = [
-			'pending'           => 'pending-payment',
-			'delivered'         => 'completed',
-			'partial_delivered' => 'processing',
-			'cancelled'         => 'cancelled',
-			'unknown'           => '',
+			'pending'                    => 'pending-payment',
+			'delivered'                  => 'completed',
+			'partial_delivered'          => 'processing',
+			'cancelled'                  => 'cancelled',
+			'unknown'                    => '',
+			'delivered_approval'         => '',
 		];
 
 		$sanitized = [];
@@ -478,19 +479,21 @@ class AdminMenu {
 
 		// Steadfast defaults and mapping
 		$steadfast_defaults = [
-			'pending'           => 'pending-payment',
-			'delivered'         => 'completed',
-			'partial_delivered' => 'processing',
-			'cancelled'         => 'cancelled',
-			'unknown'           => ''
+			'pending'                    => 'pending-payment',
+			'delivered'                  => 'completed',
+			'partial_delivered'          => 'processing',
+			'cancelled'                  => 'cancelled',
+			'unknown'                    => '',
+			'delivered_approval'         => '',
 		];
 		$steadfast_map = get_option( 'wsa_steadfast_status_map', [] );
 		$steadfast_statuses = [
-			'pending'           => 'Pending',
-			'delivered'         => 'Delivered',
-			'partial_delivered' => 'Partial Delivered',
-			'cancelled'         => 'Cancelled',
-			'unknown'           => 'Unknown'
+			'pending'                    => 'Pending',
+			'delivered'                  => 'Delivered',
+			'partial_delivered'          => 'Partial Delivered',
+			'cancelled'                  => 'Cancelled',
+			'unknown'                    => 'Unknown',
+			'delivered_approval'         => 'Delivered_approval',
 		];
 
 		// Webhook tokens

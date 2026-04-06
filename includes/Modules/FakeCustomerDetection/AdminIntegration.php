@@ -303,7 +303,7 @@ class AdminIntegration {
 		$html .= '<div class="wsa-fp-banner-left">';
 		$html .= '<div class="wsa-fp-banner-icon">🛡️</div>';
 		$html .= '<div class="wsa-fp-banner-info">';
-		$html .= '<strong>FraudPeek Intelligence</strong>';
+		$html .= '<strong>Courier Intelligence</strong>';
 		$html .= '<span>Multi-courier fraud analysis across all platforms</span>';
 		$html .= '</div>';
 		$html .= '</div>';
@@ -413,7 +413,7 @@ class AdminIntegration {
 			// Footer
 			if ( $fp_fetched_at ) {
 				$html .= '<div class="wsa-fp-foot">';
-				$html .= '🔗 FraudPeek · ' . esc_html( $fp_sources ) . ' couriers aggregated';
+				$html .= '🚚 Courier Intelligence · ' . esc_html( $fp_sources ) . ' couriers aggregated';
 				$html .= '<span>' . esc_html( $fp_fetched_at ) . '</span>';
 				$html .= '</div>';
 			}
@@ -422,8 +422,8 @@ class AdminIntegration {
 			// Empty state
 			$html .= '<div class="wsa-fp-empty">';
 			$html .= '<div class="wsa-fp-empty-ico">🔍</div>';
-			$html .= '<h4>No FraudPeek Data Yet</h4>';
-			$html .= '<p>Click <strong>Refresh</strong> above to fetch multi-courier fraud intelligence.</p>';
+			$html .= '<h4>No Courier Intelligence Data Yet</h4>';
+			$html .= '<p>Click <strong>Refresh</strong> above to fetch multi-courier intelligence.</p>';
 			$html .= '</div>';
 		}
 

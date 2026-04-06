@@ -12,6 +12,20 @@ class Courier {
 			add_action( 'rest_api_init', [ $this, 'register_rest_routes' ] );
 		}
 		// CourierSettings UI removed — FraudPeek credentials are hardcoded
+
+		// Prevent WooCommerce from auto-cancelling unpaid orders that are managed by couriers
+		add_filter( 'woocommerce_cancel_unpaid_order', [ $this, 'prevent_auto_cancellation_for_courier_orders' ], 10, 2 );
+	}
+
+	/**
+	 * Prevent WooCommerce from auto-cancelling orders (Hold Stock feature)
+	 * if the order is being managed by a courier webhook.
+	 */
+	public function prevent_auto_cancellation_for_courier_orders( $cancel, $order ) {
+		if ( $order && $order->get_meta( '_wsa_managed_by_courier' ) === 'yes' ) {
+			return false; // Do not cancel
+		}
+		return $cancel;
 	}
 
 	public function register_rest_routes() {

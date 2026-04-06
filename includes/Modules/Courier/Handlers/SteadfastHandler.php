@@ -35,8 +35,23 @@ class SteadfastHandler {
 
 		error_log( 'WSA Steadfast Webhook Received: ' . print_r( $params, true ) );
 
-		// Steadfast uses 'status' and 'invoice' (sometimes with prefix)
-		$status_slug = isset( $params['status'] ) ? sanitize_text_field( strtolower( $params['status'] ) ) : '';
+		// Handle specific notification types from SteadFast webhook correctly
+		if ( isset( $params['notification_type'] ) && 'tracking_update' === $params['notification_type'] ) {
+			return new \WP_REST_Response( [ 'status' => 'success', 'message' => 'Tracking update received.' ], 200 );
+		}
+
+		// Steadfast uses 'status', 'delivery_status', 'DeliveryStatus' and 'invoice' (sometimes with prefix)
+		if ( isset( $params['DeliveryStatus'] ) ) {
+			$status_raw = $params['DeliveryStatus'];
+		} elseif ( isset( $params['delivery_status'] ) ) {
+			$status_raw = $params['delivery_status'];
+		} elseif ( isset( $params['status'] ) ) {
+			$status_raw = $params['status'];
+		} else {
+			$status_raw = '';
+		}
+		
+		$status_slug = sanitize_text_field( strtolower( $status_raw ) );
 		$invoice     = isset( $params['invoice'] ) ? sanitize_text_field( $params['invoice'] ) : '';
 
 		if ( ! $invoice ) {
@@ -69,6 +84,10 @@ class SteadfastHandler {
 		$new_status = $this->map_status( $status_slug );
 
 		if ( $new_status ) {
+			// Mark order as managed by courier to prevent WC auto-cancellation
+			$order->update_meta_data( '_wsa_managed_by_courier', 'yes' );
+			$order->save_meta_data();
+
 			$order->update_status(
 				$new_status,
 				sprintf(

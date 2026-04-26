@@ -106,12 +106,17 @@ class AdminIntegration {
 
 		// Use FraudPeek score if available
 		$display_score = ( $fp_available === '1' ) ? $fp_risk_score : $score;
-		$risk_class    = $this->get_risk_class( (int) $display_score );
 		$risk_level    = ( $fp_available === '1' && ! empty( $fp_risk_level ) ) ? ucfirst( $fp_risk_level ) : $this->get_risk_level( (int) $display_score );
-
-		// If FraudPeek says it's Low risk even if score is high (like 100), respect that level
-		if ( $fp_available === '1' && strtolower( $fp_risk_level ) === 'low' ) {
-			$risk_class = 'very-low';
+		
+		// Map text level to class for visual consistency
+		$risk_class = $this->get_risk_class( (int) $display_score );
+		if ( ! empty( $risk_level ) ) {
+			$lvl = strtolower( $risk_level );
+			if ( strpos( $lvl, 'very low' ) !== false ) $risk_class = 'very-low';
+			elseif ( strpos( $lvl, 'low' ) !== false ) $risk_class = 'low';
+			elseif ( strpos( $lvl, 'medium' ) !== false ) $risk_class = 'medium';
+			elseif ( strpos( $lvl, 'high' ) !== false ) $risk_class = 'high';
+			elseif ( strpos( $lvl, 'critical' ) !== false ) $risk_class = 'critical';
 		}
 
 		// Build inline tooltip content
@@ -177,13 +182,13 @@ class AdminIntegration {
 	 * Get CSS class based on risk score (5 levels)
 	 */
 	private function get_risk_class( $score ) {
-		if ( $score <= 20 ) {
+		if ( $score >= 90 ) {
 			return 'very-low';
-		} elseif ( $score <= 40 ) {
+		} elseif ( $score >= 75 ) {
 			return 'low';
-		} elseif ( $score <= 60 ) {
+		} elseif ( $score >= 50 ) {
 			return 'medium';
-		} elseif ( $score <= 80 ) {
+		} elseif ( $score >= 25 ) {
 			return 'high';
 		} else {
 			return 'critical';
@@ -194,16 +199,16 @@ class AdminIntegration {
 	 * Get risk level text (5 levels)
 	 */
 	private function get_risk_level( $score ) {
-		if ( $score <= 20 ) {
-			return __( 'Very Low', 'woo-smart-automation' );
-		} elseif ( $score <= 40 ) {
-			return __( 'Low', 'woo-smart-automation' );
-		} elseif ( $score <= 60 ) {
-			return __( 'Medium', 'woo-smart-automation' );
-		} elseif ( $score <= 80 ) {
-			return __( 'High', 'woo-smart-automation' );
+		if ( $score >= 90 ) {
+			return __( 'Very Low Risk', 'woo-smart-automation' );
+		} elseif ( $score >= 75 ) {
+			return __( 'Low Risk', 'woo-smart-automation' );
+		} elseif ( $score >= 50 ) {
+			return __( 'Medium Risk', 'woo-smart-automation' );
+		} elseif ( $score >= 25 ) {
+			return __( 'High Risk', 'woo-smart-automation' );
 		} else {
-			return __( 'Critical', 'woo-smart-automation' );
+			return __( 'Critical Risk', 'woo-smart-automation' );
 		}
 	}
 
@@ -244,278 +249,179 @@ class AdminIntegration {
 		check_ajax_referer( 'wsa_risk_details', 'nonce' );
 
 		$order_id = isset( $_POST['order_id'] ) ? intval( $_POST['order_id'] ) : 0;
-
-		if ( ! $order_id ) {
-			wp_send_json_error( [ 'message' => 'Invalid order ID' ] );
-		}
+		if ( ! $order_id ) wp_send_json_error( [ 'message' => 'Invalid order ID' ] );
 
 		$order = wc_get_order( $order_id );
-
-		if ( ! $order ) {
-			wp_send_json_error( [ 'message' => 'Order not found' ] );
-		}
+		if ( ! $order ) wp_send_json_error( [ 'message' => 'Order not found' ] );
 
 		$score          = (int) get_post_meta( $order_id, '_wsa_risk_score', true );
-		$signals        = get_post_meta( $order_id, '_wsa_risk_signals', true );
-		$signals        = $signals ? json_decode( $signals, true ) : [];
+		$signals        = json_decode( get_post_meta( $order_id, '_wsa_risk_signals', true ), true ) ?: [];
 		$calculated_at  = get_post_meta( $order_id, '_wsa_risk_calculated_at', true );
+		$risk_class     = $this->get_risk_class( $score );
 
-		$risk_class = $this->get_risk_class( $score );
-		$risk_level = $this->get_risk_level( $score );
+		// Packzy Data
+		$pz_count     = get_post_meta( $order_id, '_wsa_packzy_count', true );
+		$pz_delivered = get_post_meta( $order_id, '_wsa_packzy_delivered', true );
+		$pz_cancelled = get_post_meta( $order_id, '_wsa_packzy_cancelled', true );
+		$pz_reports   = json_decode( get_post_meta( $order_id, '_wsa_packzy_reports', true ), true ) ?: [];
+		$pz_error     = get_post_meta( $order_id, '_wsa_packzy_error', true );
 
-		// FraudPeek meta
+		// FraudPeek Data
 		$fp_available     = get_post_meta( $order_id, '_wsa_fp_available', true );
-		$fp_risk_level    = get_post_meta( $order_id, '_wsa_fp_risk_level', true );
 		$fp_risk_score    = get_post_meta( $order_id, '_wsa_fp_risk_score', true );
-		$fp_ai_score      = get_post_meta( $order_id, '_wsa_fp_ai_risk_score', true );
-		$fp_risk_msg      = get_post_meta( $order_id, '_wsa_fp_risk_message', true );
 		$fp_ai_summary    = get_post_meta( $order_id, '_wsa_fp_ai_summary', true );
 		$fp_total         = get_post_meta( $order_id, '_wsa_fp_total_parcels', true );
 		$fp_delivered     = get_post_meta( $order_id, '_wsa_fp_delivered', true );
 		$fp_cancelled     = get_post_meta( $order_id, '_wsa_fp_cancelled', true );
-		$fp_returned      = get_post_meta( $order_id, '_wsa_fp_returned', true );
-		$fp_delivery_rate = get_post_meta( $order_id, '_wsa_fp_delivery_rate', true );
-		$fp_return_rate   = get_post_meta( $order_id, '_wsa_fp_return_rate', true );
-		$fp_fraud_alerts  = get_post_meta( $order_id, '_wsa_fp_fraud_alerts', true );
-		$fp_reports       = get_post_meta( $order_id, '_wsa_fp_report_count', true );
-		$fp_sources       = get_post_meta( $order_id, '_wsa_fp_courier_sources', true );
 		$fp_couriers_raw  = get_post_meta( $order_id, '_wsa_fp_couriers', true );
-		$fp_fetched_at    = get_post_meta( $order_id, '_wsa_fp_fetched_at', true );
-		$fp_data_source   = get_post_meta( $order_id, '_wsa_fp_data_source', true );
+		$fp_couriers      = $fp_couriers_raw ? json_decode( $fp_couriers_raw, true ) : [];
 
-		// ── Override with FraudPeek if available ─────────────────────────────
-		if ( $fp_available === '1' ) {
-			$display_score = (int) $fp_risk_score;
-			$display_level = ucfirst( (string) $fp_risk_level );
-			
-			// Use more accurate FraudPeek logic for classes
-			$fp_level_low = strtolower( (string) $fp_risk_level );
-			if ( in_array( $fp_level_low, [ 'low', 'very low', 'very_low' ], true ) ) {
-				$risk_class = 'very-low';
-			} elseif ( $fp_level_low === 'medium' ) {
-				$risk_class = 'medium';
-			} elseif ( $fp_level_low === 'high' ) {
-				$risk_class = 'high';
-			} elseif ( in_array( $fp_level_low, [ 'critical', 'very high', 'very_high' ], true ) ) {
-				$risk_class = 'critical';
-			}
-		} else {
-			$display_score = $score;
-			$display_level = $risk_level;
+		$display_score = ( $fp_available === '1' ) ? (int) $fp_risk_score : $score;
+		$risk_level    = ( $fp_available === '1' && ! empty( $fp_risk_level ) ) ? ucfirst( $fp_risk_level ) : $this->get_risk_level( (int) $display_score );
+		
+		$risk_class = $this->get_risk_class( (int) $display_score );
+		if ( ! empty( $risk_level ) ) {
+			$lvl = strtolower( $risk_level );
+			if ( strpos( $lvl, 'very low' ) !== false ) $risk_class = 'very-low';
+			elseif ( strpos( $lvl, 'low' ) !== false ) $risk_class = 'low';
+			elseif ( strpos( $lvl, 'medium' ) !== false ) $risk_class = 'medium';
+			elseif ( strpos( $lvl, 'high' ) !== false ) $risk_class = 'high';
+			elseif ( strpos( $lvl, 'critical' ) !== false ) $risk_class = 'critical';
+		}
+		
+		$html = '<div class="wsa-risk-details-modal wsa-v3 wsa-unified">';
+		
+		// ── Header ──
+		$html .= '<div class="wsa-modal-header header-' . esc_attr( $risk_class ) . '">';
+		$html .= '<div class="header-main"><h3>Identity Intelligence</h3><p>#' . $order->get_order_number() . ' &middot; ' . esc_html($order->get_billing_phone()) . '</p></div>';
+		$html .= '<div class="header-score"><div class="score-pill">' . $display_score . '<span>Trust</span></div><span class="wsa-modal-close">&times;</span></div>';
+		$html .= '</div>';
+
+		$html .= '<div class="wsa-modal-content single-view">';
+		
+		if ( $pz_error ) {
+			$html .= '<div class="wsa-alert warning"><strong>Rate Limit:</strong> ' . esc_html( $pz_error ) . '</div>';
 		}
 
-		// ── Build Modal HTML ─────────────────────────────────────────────────
-		$html = '<div class="wsa-risk-details-modal wsa-v2">';
+		// ── Global Stats Row (4 Colorful Cards) ──
+		$total_p    = (int)$fp_total + (int)$pz_count;
+		$total_d    = (int)$fp_delivered + (int)$pz_delivered;
+		$total_r    = (int)$fp_returned; // Packzy doesn't explicitly return returned vs cancelled, so using FP returned
+		$total_f    = count($pz_reports);
 
-		// ── Header with gradient & score ring ──────────────────────────────
-		$html .= '<div class="wsa-m-header wsa-hdr-' . esc_attr( $risk_class ) . '">';
-		$html .= '<div class="wsa-hdr-inner">';
-		$html .= '<div class="wsa-hdr-left">';
-		$html .= '<h3 class="wsa-hdr-title">Risk Analysis</h3>';
-		$html .= '<p class="wsa-hdr-sub">Order #' . esc_html( $order->get_order_number() ) . ' &middot; ' . esc_html( $order->get_billing_first_name() . ' ' . $order->get_billing_last_name() ) . '</p>';
-		if ( $calculated_at ) {
-			$html .= '<span class="wsa-hdr-time">Analyzed ' . esc_html( human_time_diff( strtotime( $calculated_at ), current_time( 'timestamp' ) ) ) . ' ago</span>';
-		}
-		$html .= '</div>';
-		$html .= '<div class="wsa-hdr-right">';
-		$html .= '<div class="wsa-score-ring wsa-ring-' . esc_attr( $risk_class ) . '">';
-		$html .= '<div class="wsa-ring-num">' . esc_html( (string) $display_score ) . '</div>';
-		$html .= '<div class="wsa-ring-lbl">' . esc_html( $display_level ) . '</div>';
-		$html .= '</div>';
-		$html .= '</div>';
-		$html .= '</div>';
-		$html .= '<span class="wsa-modal-close">&times;</span>';
+		$html .= '<div class="stats-grid grid-4">';
+		$html .= '<div class="stat-box primary"><strong>' . $total_p . '</strong><span>Total Parcels</span></div>';
+		$html .= '<div class="stat-box success"><strong>' . $total_d . '</strong><span>Delivered</span></div>';
+		$html .= '<div class="stat-box warning"><strong>' . $total_r . '</strong><span>Returns</span></div>';
+		$html .= '<div class="stat-box danger"><strong>' . $total_f . '</strong><span>Fraud Logs</span></div>';
 		$html .= '</div>';
 
-		// ── Body ────────────────────────────────────────────────────────────
-		$html .= '<div class="wsa-m-body">';
+		// ── Courier Table ──
+		$html .= '<div class="section-title">National Courier Intelligence</div>';
+		$html .= '<div class="table-container"><table class="wsa-minimal-table">';
+		$html .= '<thead><tr><th>Courier</th><th>Parcels</th><th>Delivered / Fail</th><th>Success Rate</th></tr></thead><tbody>';
+		
+		// Major Couriers to always show
+		$major_couriers = [
+			'Steadfast' => [ 'source' => 'pz', 'label' => 'Steadfast' ],
+			'Pathao'    => [ 'source' => 'fp', 'label' => 'Pathao' ],
+			'RedX'      => [ 'source' => 'fp', 'label' => 'RedX' ],
+			'CarryBee'  => [ 'source' => 'fp', 'label' => 'CarryBee' ],
+		];
 
-		// ── FraudPeek Banner ─────────────────────────────────────────────
-		$html .= '<div class="wsa-fp-banner">';
-		$html .= '<div class="wsa-fp-banner-left">';
-		$html .= '<div class="wsa-fp-banner-icon">🛡️</div>';
-		$html .= '<div class="wsa-fp-banner-info">';
-		$html .= '<strong>Courier Intelligence</strong>';
-		$html .= '<span>Multi-courier fraud analysis across all platforms</span>';
-		$html .= '</div>';
-		$html .= '</div>';
-		$html .= '<button type="button" class="wsa-fp-btn wsa-recalculate-btn" data-order-id="' . esc_attr( $order_id ) . '">';
-		$html .= '<span>⚡</span> Refresh Data</button>';
-		$html .= '</div>';
+		foreach ( $major_couriers as $key => $conf ) {
+			$label = $conf['label'];
+			$total = 0; $del = 0; $can = 0; $rate = '-';
 
-		if ( $fp_available === '1' ) {
-			// Professional Progress Bar Row
-			$html .= '<div class="wsa-m-row wsa-m-prog-row">';
-			$html .= '<div class="wsa-m-prog-info">';
-			$html .= '<span class="wsa-m-prog-label">FraudPeak Risk Exposure</span>';
-			$html .= '<span class="wsa-m-prog-val">' . esc_html( $display_score ) . '%</span>';
-			$html .= '</div>';
-			$html .= '<div class="wsa-m-prog-track">';
-			$html .= '<div class="wsa-m-prog-bar wsa-prog-' . esc_attr( $risk_class ) . '" style="width:' . esc_attr( $display_score ) . '%"></div>';
-			$html .= '</div>';
-			$html .= '</div>';
-
-			// Delivery Rate Progress Bar
-			$html .= '<div class="wsa-m-row wsa-m-prog-row" style="margin-top: 10px;">';
-			$html .= '<div class="wsa-m-prog-info">';
-			$html .= '<span class="wsa-m-prog-label">Delivery Rate</span>';
-			$html .= '<span class="wsa-m-prog-val">' . esc_html( $fp_delivery_rate ) . '%</span>';
-			$html .= '</div>';
-			$html .= '<div class="wsa-m-prog-track">';
-			$dr_cls = (float)$fp_delivery_rate >= 80 ? 'low' : ((float)$fp_delivery_rate >= 50 ? 'medium' : 'critical');
-			$html .= '<div class="wsa-m-prog-bar wsa-prog-' . esc_attr($dr_cls) . '" style="width:' . esc_attr( $fp_delivery_rate ) . '%"></div>';
-			$html .= '</div>';
-			$html .= '</div>';
-
-			// Return Rate Progress Bar
-			$html .= '<div class="wsa-m-row wsa-m-prog-row" style="margin-top: 10px; margin-bottom: 20px;">';
-			$html .= '<div class="wsa-m-prog-info">';
-			$html .= '<span class="wsa-m-prog-label">Return Rate</span>';
-			$html .= '<span class="wsa-m-prog-val">' . esc_html( $fp_return_rate ) . '%</span>';
-			$html .= '</div>';
-			$html .= '<div class="wsa-m-prog-track">';
-			$rr_cls = (float)$fp_return_rate <= 10 ? 'low' : ((float)$fp_return_rate <= 30 ? 'medium' : 'critical');
-			$html .= '<div class="wsa-m-prog-bar wsa-prog-' . esc_attr($rr_cls) . '" style="width:' . esc_attr( $fp_return_rate ) . '%"></div>';
-			$html .= '</div>';
-			$html .= '</div>';
-
-			$fp_level_lower = strtolower( (string) $fp_risk_level ?: 'unknown' );
-			$fp_cls = 'medium';
-			if ( in_array( $fp_level_lower, [ 'low', 'very low', 'very_low' ], true ) ) {
-				$fp_cls = 'low';
-			} elseif ( $fp_level_lower === 'high' ) {
-				$fp_cls = 'high';
-			} elseif ( in_array( $fp_level_lower, [ 'critical', 'very high', 'very_high' ], true ) ) {
-				$fp_cls = 'critical';
-			}
-
-			// Score cards row
-			$html .= '<div class="wsa-cards-row">';
-			$html .= '<div class="wsa-card wsa-card-' . esc_attr( $fp_cls ) . '">';
-			$html .= '<div class="wsa-card-lbl">Fraud Risk</div>';
-			$html .= '<div class="wsa-card-val">' . esc_html( ucfirst( (string) $fp_risk_level ) ) . '</div>';
-			$html .= '</div>';
-			$html .= '<div class="wsa-card wsa-card-blue">';
-			$html .= '<div class="wsa-card-lbl">FP Score</div>';
-			$html .= '<div class="wsa-card-val">' . esc_html( (string) $fp_risk_score ) . '<small>/100</small></div>';
-			$html .= '</div>';
-			$html .= '<div class="wsa-card wsa-card-purple">';
-			$html .= '<div class="wsa-card-lbl">AI Confidence</div>';
-			$ai_score_val = (int) $fp_ai_score;
-			$html .= '<div class="wsa-card-val">' . esc_html( (string) $ai_score_val ) . '<small>%</small></div>';
-			$html .= '</div>';
-			$html .= '</div>';
-
-			// Stats grid
-			$html .= '<div class="wsa-sec-title"><span>📊</span> Delivery Reliability</div>';
-			$html .= '<div class="wsa-stats-grid">';
-			$html .= $this->stat_card( '📦', 'Total Parcels', $fp_total, 'indigo' );
-			$html .= $this->stat_card( '✅', 'Delivered', $fp_delivered, 'green' );
-			$html .= $this->stat_card( '❌', 'Cancelled', $fp_cancelled, 'red' ); // Always red
-			$html .= $this->stat_card( '↩️', 'Returned', $fp_returned, 'orange' ); // Always orange
-			$html .= $this->stat_card( '', 'Fraud Alerts', $fp_fraud_alerts, 'red' ); // Always red
-			$html .= $this->stat_card( '📝', 'Reports', $fp_reports, 'amber' ); // Always amber
-			$html .= $this->stat_card( '🚚', 'Couriers', $fp_sources, 'purple' );
-			$html .= '</div>';
-
-			// AI Summary (REMOVED as per user request)
-			/*
-			if ( $fp_ai_summary ) {
-				$html .= '<div class="wsa-ai-card">';
-				$html .= '<div class="wsa-ai-hdr"><span>🤖</span> AI Analysis</div>';
-				$html .= '<div class="wsa-ai-txt">' . esc_html( $fp_ai_summary ) . '</div>';
-				$html .= '</div>';
-			}
-			*/
-
-			// Risk Message
-			if ( $fp_risk_msg ) {
-				$html .= '<div class="wsa-risk-msg wsa-rmsg-' . esc_attr( $fp_cls ) . '">';
-				$html .= '<span class="wsa-rmsg-ico">💡</span> ' . esc_html( $fp_risk_msg );
-				$html .= '</div>';
-			}
-
-			// Courier table
-			$fp_couriers = $fp_couriers_raw ? json_decode( $fp_couriers_raw, true ) : [];
-			if ( ! empty( $fp_couriers ) ) {
-				$html .= '<div class="wsa-sec-title"><span>🚛</span> Courier Breakdown</div>';
-				$html .= '<div class="wsa-tbl-wrap">';
-				$html .= '<table class="wsa-tbl">';
-				$html .= '<thead><tr><th>Courier</th><th>Total</th><th>Delivered</th><th>Cancelled</th><th>Delivery%</th><th>Fraud</th><th>Segment</th></tr></thead><tbody>';
-
-				foreach ( $fp_couriers as $id_key => $c ) {
-					$tc = (int) ( $c['total_parcels'] ?? 0 );
-					$dr = (float) ( $c['delivery_rate'] ?? 0 );
-					$rc = '';
-					if ( $tc === 0 ) { $rc = 'wsa-tr-dim'; }
-					elseif ( $dr < 60 ) { $rc = 'wsa-tr-warn'; }
-
-					$seg = $c['customer_segment'] ?? ( $tc === 0 ? 'No Data' : '—' );
-					$seg_cls = 'wsa-seg-def';
-					if ( stripos( $seg, 'Normal' ) !== false ) { $seg_cls = 'wsa-seg-ok'; }
-					elseif ( stripos( $seg, 'New' ) !== false ) { $seg_cls = 'wsa-seg-new'; }
-					elseif ( stripos( $seg, 'No Data' ) !== false ) { $seg_cls = 'wsa-seg-na'; }
-
-					$html .= '<tr class="' . esc_attr( $rc ) . '">';
-					$html .= '<td class="wsa-td-name">' . esc_html( $c['courier'] ?? $id_key ) . '</td>';
-					$html .= '<td>' . esc_html( $tc ) . '</td>';
-					$html .= '<td>' . esc_html( $c['delivered'] ?? 0 ) . '</td>';
-					$html .= '<td>' . esc_html( $c['cancelled'] ?? 0 ) . '</td>';
-					$html .= '<td>';
-					if ( $tc > 0 ) {
-						$pill_cls = $dr >= 80 ? 'wsa-pill-ok' : ( $dr >= 50 ? 'wsa-pill-mid' : 'wsa-pill-bad' );
-						$html .= '<span class="wsa-pill ' . $pill_cls . '">' . esc_html( $dr ) . '%</span>';
-					} else {
-						$html .= '<span class="wsa-pill wsa-pill-na">—</span>';
+			if ( $conf['source'] === 'pz' ) {
+				if ( $pz_error ) {
+					$html .= '<tr><td><strong>' . $label . '</strong></td><td colspan="3"><span class="wsa-badge-error">⚠️ Rate Limited</span></td></tr>';
+					continue;
+				}
+				$total = (int)$pz_count;
+				$del   = (int)$pz_delivered;
+				$can   = (int)$pz_cancelled;
+				$rate  = ($total > 0) ? round(($del/$total)*100) . '%' : '0%';
+			} else {
+				// Find in FP couriers
+				$found = false;
+				if ( ! empty( $fp_couriers ) ) {
+					foreach ( $fp_couriers as $c ) {
+						if ( stripos( $c['courier'], $key ) !== false ) {
+							$total = (int)($c['total_parcels'] ?? 0);
+							$del   = (int)($c['delivered'] ?? $c['delivered_parcels'] ?? 0);
+							$can   = (int)($c['cancelled'] ?? $c['cancelled_parcels'] ?? 0);
+							$rate  = round($c['delivery_rate'] ?? 0) . '%';
+							$found = true;
+							break;
+						}
 					}
-					$html .= '</td>';
-					$html .= '<td>' . esc_html( $c['fraud_count'] ?? 0 ) . '</td>';
-					$html .= '<td><span class="wsa-seg ' . esc_attr( $seg_cls ) . '">' . esc_html( $seg ) . '</span></td>';
-					$html .= '</tr>';
 				}
-				$html .= '</tbody></table></div>';
+				if ( ! $found && empty($fp_couriers) && $fp_available !== '1' ) {
+					$rate = 'Checking...';
+				} elseif ( ! $found ) {
+					$rate = '0%';
+				}
 			}
 
-			// Footer
-			if ( $fp_fetched_at ) {
-				$html .= '<div class="wsa-fp-foot">';
-				$html .= '🚚 Courier Intelligence · ' . esc_html( $fp_sources ) . ' couriers aggregated';
-				$html .= '<span>' . esc_html( $fp_fetched_at ) . '</span>';
-				$html .= '</div>';
-			}
-
-		} else {
-			// Empty state
-			$html .= '<div class="wsa-fp-empty">';
-			$html .= '<div class="wsa-fp-empty-ico">🔍</div>';
-			$html .= '<h4>No Courier Intelligence Data Yet</h4>';
-			$html .= '<p>Click <strong>Refresh</strong> above to fetch multi-courier intelligence.</p>';
-			$html .= '</div>';
+			$html .= '<tr>';
+			$html .= '<td><strong>' . $label . '</strong></td>';
+			$html .= '<td><span class="count-pill">' . $total . '</span></td>';
+			$html .= '<td><span class="txt-success">' . $del . '</span> / <span class="txt-danger">' . $can . '</span></td>';
+			$html .= '<td><span class="rate-badge">' . $rate . '</span></td>';
+			$html .= '</tr>';
 		}
-
-		// ── Risk Signals ────────────────────────────────────────────────────
-		if ( ! empty( $signals['negative'] ) || ! empty( $signals['positive'] ) ) {
-			$html .= '<div class="wsa-sec-title"><span>📋</span> Risk Signals</div>';
-
-			if ( ! empty( $signals['negative'] ) ) {
-				$html .= '<div class="wsa-sigs wsa-sigs-neg">';
-				foreach ( $signals['negative'] as $sig ) {
-					$html .= '<div class="wsa-sig"><span class="wsa-sig-dot wsa-dot-neg"></span>' . esc_html( $sig ) . '</div>';
+		
+		// Add other couriers from FP that are not in major list
+		if ( ! empty( $fp_couriers ) ) {
+			foreach ( $fp_couriers as $c ) {
+				$is_major = false;
+				foreach ($major_couriers as $mkey => $mval) {
+					if ( stripos($c['courier'], $mkey) !== false ) { $is_major = true; break; }
 				}
-				$html .= '</div>';
-			}
+				if ( $is_major ) continue;
 
-			if ( ! empty( $signals['positive'] ) ) {
-				$html .= '<div class="wsa-sigs wsa-sigs-pos">';
-				foreach ( $signals['positive'] as $sig ) {
-					$html .= '<div class="wsa-sig"><span class="wsa-sig-dot wsa-dot-pos"></span>' . esc_html( $sig ) . '</div>';
-				}
-				$html .= '</div>';
+				$total_c = $c['total_parcels'] ?? 0;
+				if ( $total_c == 0 ) continue;
+				$del_c = ($c['delivered'] ?? $c['delivered_parcels'] ?? 0);
+				$can_c = ($c['cancelled'] ?? $c['cancelled_parcels'] ?? 0);
+				$rate_c = round($c['delivery_rate']) . '%';
+
+				$html .= '<tr><td>' . esc_html($c['courier']) . '</td><td><span class="count-pill">' . $total_c . '</span></td>';
+				$html .= '<td><span class="txt-success">' . $del_c . '</span> / <span class="txt-danger">' . $can_c . '</span></td>';
+				$html .= '<td><span class="rate-badge">' . $rate_c . '</span></td></tr>';
 			}
 		}
 
-		$html .= '</div>'; // .wsa-m-body
-		$html .= '</div>'; // .wsa-risk-details-modal
+		$html .= '</tbody></table></div>';
+
+		// ── Signals ──
+		$html .= '<div class="section-title">Risk Signals</div>';
+		$html .= '<div class="signals-compact">';
+		foreach ( ($signals['negative'] ?? []) as $sig ) {
+			$html .= '<div class="sig-min neg"><span></span>' . esc_html( $sig ) . '</div>';
+		}
+		foreach ( ($signals['positive'] ?? []) as $sig ) {
+			$html .= '<div class="sig-min pos"><span></span>' . esc_html( $sig ) . '</div>';
+		}
+		$html .= '</div>';
+
+		// ── Fraud Reports ──
+		if ( ! empty( $pz_reports ) ) {
+			$html .= '<div class="section-title">Fraud Reports (Stealth)</div>';
+			foreach ( $pz_reports as $report ) {
+				$html .= '<div class="report-box"><strong>' . esc_html( $report['name'] ?: 'Report' ) . ':</strong> ' . esc_html( $report['details'] ) . '</div>';
+			}
+		}
+
+		$html .= '</div>'; // content
+
+		$html .= '<div class="wsa-modal-footer">';
+		$html .= '<div class="footer-info">Last check: ' . ( $calculated_at ? human_time_diff( strtotime( $calculated_at ), current_time( 'timestamp' ) ) . ' ago' : 'Never' ) . '</div>';
+		$html .= '<button class="wsa-recalculate-btn modern" data-order-id="' . $order_id . '">Recalculate Score</button>';
+		$html .= '</div>';
+
+		$html .= '</div>';
 
 		wp_send_json_success( [ 'html' => $html ] );
 	}

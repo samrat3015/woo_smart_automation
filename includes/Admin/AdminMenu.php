@@ -392,6 +392,10 @@ class AdminMenu {
 		register_setting( 'wsa_settings_group', 'wsa_sms_abandoned_cart_enabled' );
 		register_setting( 'wsa_settings_group', 'wsa_sms_abandoned_cart_delay' );
 		register_setting( 'wsa_settings_group', 'wsa_sms_abandoned_cart_template' );
+
+		// Packzy API Settings
+		register_setting( 'wsa_settings_group', 'wsa_packzy_api_key' );
+		register_setting( 'wsa_settings_group', 'wsa_packzy_secret_key' );
 	}
 
 	/**
@@ -811,6 +815,23 @@ class AdminMenu {
 									<?php endforeach; ?>
 								</select>
 								<p class="field-description">The status to set when the delivery score is below the threshold.</p>
+							</div>
+						</div>
+
+						<!-- Steadfast API Settings -->
+						<div class="settings-section-divider"></div>
+						<div class="settings-field-row">
+							<label class="field-label">Steadfast API Key</label>
+							<div class="field-input">
+								<input type="password" name="wsa_packzy_api_key" value="<?php echo esc_attr( get_option( 'wsa_packzy_api_key' ) ); ?>" class="settings-input input-password" placeholder="e.g. rh1x4wtsiv..." />
+								<p class="field-description">Required for Steadfast courier intelligence data.</p>
+							</div>
+						</div>
+						<div class="settings-field-row">
+							<label class="field-label">Steadfast Secret Key</label>
+							<div class="field-input">
+								<input type="password" name="wsa_packzy_secret_key" value="<?php echo esc_attr( get_option( 'wsa_packzy_secret_key' ) ); ?>" class="settings-input input-password" placeholder="e.g. bmbcmaovqx..." />
+								<p class="field-description">Your Steadfast Secret Key for API authorization.</p>
 							</div>
 						</div>
 					</div>

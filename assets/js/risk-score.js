@@ -150,14 +150,14 @@ jQuery(document).ready(function ($) {
 
 	// ── Helpers ─────────────────────────────────────────────────────────────
 
-	function showLoadingModal(orderId) {
+	function showLoadingModal(order_id) {
 		var html =
 			'<div class="wsa-risk-modal-overlay">' +
-			'<div class="wsa-risk-details-modal wsa-v2">' +
-			'<div class="wsa-modal-loading-container">' +
+			'<div class="wsa-risk-details-modal wsa-v3">' +
+			'<div class="wsa-modal-loading-container" style="padding: 60px 40px; text-align: center;">' +
 			'<div class="wsa-spinner-ring"></div>' +
-			'<p>Fetching Risk Intelligence...</p>' +
-			'<small>Order #' + (orderId || '') + '</small>' +
+			'<h3 style="margin: 20px 0 10px; color: #1e293b; font-weight: 800;">Analyzing Identity...</h3>' +
+			'<p style="color: #64748b; font-size: 13px;">Fetching cross-merchant courier intelligence for Order #' + (order_id || '') + '</p>' +
 			'</div>' +
 			'</div>' +
 			'</div>';
@@ -190,5 +190,19 @@ jQuery(document).ready(function ($) {
 			$('.wsa-risk-modal-overlay').remove();
 			$('body').css('overflow', '');
 		}
+	});
+	// ── Modal Tab Switching ───────────────────────────────────────────────
+	$(document).on('click', '.tab-btn', function (e) {
+		e.preventDefault();
+		var tabId = $(this).data('tab');
+		var $modal = $(this).closest('.wsa-risk-details-modal');
+
+		// Update Buttons
+		$modal.find('.tab-btn').removeClass('active');
+		$(this).addClass('active');
+
+		// Update Panes
+		$modal.find('.wsa-tab-pane').removeClass('active');
+		$modal.find('#tab-' + tabId).addClass('active');
 	});
 });

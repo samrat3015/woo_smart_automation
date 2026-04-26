@@ -70,29 +70,26 @@ class RiskScorer {
 		// Store bypass_cache for use in check methods
 		$this->bypass_cache = $bypass_cache;
 
-		// ❌ NEGATIVE SIGNALS
+		// ❌ NEGATIVE SIGNALS (Now Subtracting Points)
 		
 		// 1. Invalid Phone Format
 		if ( ! $this->is_valid_phone( $phone ) ) {
-			$score += 20;
+			$score -= 20;
 			$negative_signals[] = 'Invalid phone number format detected';
 		}
 
 		// 2. Cancelled/Failed Orders (on your website)
-		// IMPORTANT: Only count identity-verified orders (by customer_id / email).
-		// Phone-matched orders may belong to different people sharing the same number.
 		$cancelled_count = $this->count_orders_by_status( $identity_orders, [ 'cancelled', 'failed' ] );
 		if ( $cancelled_count > 0 ) {
-			$points = min( $cancelled_count * 10, 40 );
-			$score += $points;
-			$negative_signals[] = sprintf( '%d previous cancelled/failed orders on this store', $cancelled_count );
+			$points = min( $cancelled_count * 25, 75 ); // Increased from 10 to 25
+			$score -= $points;
+			$negative_signals[] = sprintf( '%d previous cancelled/failed orders on this store (High impact)', $cancelled_count );
 		}
 
-		// 3. Courier Returns (refunded or specific courier return statuses)
-		// Only on identity-verified orders for the same reason.
+		// 3. Courier Returns
 		$return_count = $this->count_courier_returns( $identity_orders );
 		if ( $return_count > 0 ) {
-			$score += ( $return_count * 30 );
+			$score -= ( $return_count * 30 );
 			$negative_signals[] = sprintf( '%d courier returns found (customer refused)', $return_count );
 		}
 
@@ -100,17 +97,17 @@ class RiskScorer {
 		if ( $ip_address ) {
 			$ip_failures = $this->count_ip_failures( $ip_address, $order_id );
 			if ( $ip_failures >= 2 ) {
-				$score += 25;
+				$score -= 25;
 				$negative_signals[] = sprintf( 'Same IP used for %d failed orders', $ip_failures );
 			}
 		}
 
-		// 5. High Cancellation Rate (identity-verified orders only)
+		// 5. High Cancellation Rate
 		$total_identity_orders = count( $identity_orders );
 		if ( $total_identity_orders >= 5 ) {
 			$cancellation_rate = $cancelled_count / $total_identity_orders;
 			if ( $cancellation_rate > 0.7 ) {
-				$score += 15;
+				$score -= 15;
 				$negative_signals[] = sprintf( 'Very high store cancellation rate: %d%%', round( $cancellation_rate * 100 ) );
 			}
 		}
@@ -118,7 +115,7 @@ class RiskScorer {
 		// 6. Duplicate Order Detection
 		$duplicate_data = $this->check_for_duplicate_order( $order );
 		if ( $duplicate_data ) {
-			$score += 40; // High penalty for duplicates
+			$score -= 40; 
 			$negative_signals[] = sprintf( 'Potential duplicate of order #%d found (placed within 1 hour)', $duplicate_data );
 			update_post_meta( $order_id, '_wsa_is_potential_duplicate', $duplicate_data );
 		} else {
@@ -127,61 +124,63 @@ class RiskScorer {
 
 		// 7. Identity Mismatch (Billing vs Shipping)
 		if ( $this->has_identity_mismatch( $order ) ) {
-			$score += 15;
+			$score -= 15;
 			$negative_signals[] = 'Billing and Shipping identity mismatch detected';
 		}
 
 		// 8. Address Quality Check
 		if ( $this->is_suspicious_address( $order->get_billing_address_1() ) ) {
-			$score += 25;
+			$score -= 25;
 			$negative_signals[] = 'Suspicious or junk character pattern in address';
 		}
 
 		// 9. Night Shift Order (1AM - 5AM)
 		if ( $this->is_night_shift_order( $order ) ) {
-			$score += 10;
+			$score -= 10;
 			$negative_signals[] = 'Order placed during high-risk hours (1AM - 5AM)';
 		}
 
-		// ✅ POSITIVE SIGNALS
+		// ✅ POSITIVE SIGNALS (Now Adding Points)
 
-		// 1. Successful Deliveries (identity-verified orders only)
+		// 1. Successful Deliveries
 		$completed_count = $this->count_orders_by_status( $identity_orders, [ 'completed' ] );
 		if ( $completed_count > 0 ) {
-			$score -= min( $completed_count * 20, 60 ); // cap at -60
+			$score += min( $completed_count * 20, 50 ); // cap at +50
 			$positive_signals[] = sprintf( '%d successful order(s) on this store', $completed_count );
 		}
 
-		// 2. Stable History (identity-verified orders, active for > 6 months)
+		// 2. Stable History
 		if ( $this->has_stable_history( $identity_orders, $completed_count ) ) {
-			$score -= 15;
+			$score += 15;
 			$positive_signals[] = 'Customer has stable 6+ month history on this store';
 		}
 
-		// 3. Verified Phone:
-		// Check identity orders first (stronger signal), then phone orders as fallback
+		// 3. Verified Phone
 		if ( $this->is_verified_phone( $phone, $identity_orders ) || $this->is_verified_phone( $phone, $phone_orders ) ) {
-			$score -= 10;
+			$score += 10;
 			$positive_signals[] = 'Phone number verified in a previous completed order';
 		}
 
-		// 4. Low Return Rate (identity-verified orders)
+		// 4. Low Return Rate
 		if ( $return_count === 0 && $total_identity_orders > 0 ) {
-			$score -= 10;
+			$score += 10;
 			$positive_signals[] = 'No courier returns on this store';
 		}
 
-		// 5. Courier Intelligence (Multi-courier Cross-Merchant Data)
+
+		// 5. Courier Intelligence (Cross-Merchant Data)
 		$courier_check = $this->check_courier_intelligence( $order );
 		$score += $courier_check['score'];
+		
+		foreach ( $courier_check['positive_signals'] as $sig ) { $positive_signals[] = $sig; }
+		foreach ( $courier_check['negative_signals'] as $sig ) { $negative_signals[] = $sig; }
 
-		// Merge courier signals into correct positive/negative buckets
-		foreach ( $courier_check['positive_signals'] as $sig ) {
-			$positive_signals[] = $sig;
-		}
-		foreach ( $courier_check['negative_signals'] as $sig ) {
-			$negative_signals[] = $sig;
-		}
+		// 6. Packzy Intelligence (Specific Steadfast Data)
+		$packzy_check = $this->check_packzy_intelligence( $order );
+		$score += $packzy_check['score'];
+
+		foreach ( $packzy_check['positive_signals'] as $sig ) { $positive_signals[] = $sig; }
+		foreach ( $packzy_check['negative_signals'] as $sig ) { $negative_signals[] = $sig; }
 
 		// Clamp score between 0 and 100
 		$score = max( 0, min( 100, $score ) );
@@ -414,14 +413,14 @@ class RiskScorer {
 	 * Get risk level text based on score
 	 */
 	private function get_risk_level( $score ) {
-		if ( $score <= 20 ) {
-			return 'Very Low';
-		} elseif ( $score <= 40 ) {
-			return 'Low';
-		} elseif ( $score <= 60 ) {
-			return 'Medium';
-		} elseif ( $score <= 80 ) {
-			return 'High';
+		if ( $score >= 80 ) {
+			return 'Very Low Risk';
+		} elseif ( $score >= 60 ) {
+			return 'Low Risk';
+		} elseif ( $score >= 40 ) {
+			return 'Medium Risk';
+		} elseif ( $score >= 20 ) {
+			return 'High Risk';
 		} else {
 			return 'Critical';
 		}
@@ -501,166 +500,195 @@ class RiskScorer {
 	 * @return array Array with 'score', 'positive_signals', 'negative_signals'
 	 */
 	private function check_courier_intelligence( $order ) {
-		$phone        = $order->get_billing_phone();
-		$order_id     = $order->get_id();
-		$bypass_cache = isset( $this->bypass_cache ) ? $this->bypass_cache : false;
+		$phone    = $order->get_billing_phone();
+		$order_id = $order->get_id();
 
-		// Load service
+		// 1. Check local DB cache first (unless bypassing)
+		if ( ! $this->bypass_cache ) {
+			$existing_id_data = $this->find_recent_intelligence_by_phone( $phone, '_wsa_fp_available' );
+			if ( $existing_id_data ) {
+				$this->sync_intelligence_meta( $order_id, $existing_id_data['id'], 'fp' );
+				
+				$available = get_post_meta( $order_id, '_wsa_fp_available', true );
+				if ( $available === '1' ) {
+					return $this->calculate_fp_score_from_meta( $order_id );
+				}
+			}
+		}
+
+		// Fresh fetch
 		require_once WSA_PATH . 'includes/Modules/Courier/FraudPeekService.php';
 		$service = new \WooSmartAutomation\Modules\Courier\FraudPeekService();
-
-		$fp = $service->get_fraud_data( $phone, $bypass_cache );
+		$fp = $service->get_fraud_data( $phone, $this->bypass_cache );
 
 		if ( ! $fp ) {
-			// API unavailable — store empty marker and return neutral
 			update_post_meta( $order_id, '_wsa_fp_available', '0' );
 			return [ 'score' => 0, 'positive_signals' => [], 'negative_signals' => [] ];
 		}
 
-		// ── Persist all fields as order meta (for admin display) ──
+		// Persist all fields
 		update_post_meta( $order_id, '_wsa_fp_available',           '1' );
 		update_post_meta( $order_id, '_wsa_fp_risk_score',          $fp['risk_score'] );
 		update_post_meta( $order_id, '_wsa_fp_ai_risk_score',       $fp['ai_risk_score'] );
 		update_post_meta( $order_id, '_wsa_fp_risk_level',          $fp['risk_level'] );
-		update_post_meta( $order_id, '_wsa_fp_risk_message',        $fp['risk_message'] );
 		update_post_meta( $order_id, '_wsa_fp_ai_summary',          $fp['ai_summary'] );
 		update_post_meta( $order_id, '_wsa_fp_total_parcels',       $fp['total_parcels'] );
 		update_post_meta( $order_id, '_wsa_fp_delivered',           $fp['delivered_parcels'] );
 		update_post_meta( $order_id, '_wsa_fp_cancelled',           $fp['cancelled_parcels'] );
 		update_post_meta( $order_id, '_wsa_fp_returned',            $fp['returned_parcels'] );
 		update_post_meta( $order_id, '_wsa_fp_delivery_rate',       $fp['average_delivery_rate'] );
-		update_post_meta( $order_id, '_wsa_fp_return_rate',         $fp['average_return_rate'] );
 		update_post_meta( $order_id, '_wsa_fp_fraud_alerts',        $fp['fraud_alerts'] );
-		update_post_meta( $order_id, '_wsa_fp_report_count',        $fp['report_count'] );
-		update_post_meta( $order_id, '_wsa_fp_courier_sources',     $fp['courier_sources'] );
 		update_post_meta( $order_id, '_wsa_fp_couriers',            wp_json_encode( $fp['couriers'] ) );
-		update_post_meta( $order_id, '_wsa_fp_data_source',         $fp['data_source'] );
 		update_post_meta( $order_id, '_wsa_fp_fetched_at',          $fp['fetched_at'] );
 
-		// Legacy meta
-		update_post_meta( $order_id, '_wsa_courier_total_orders',   $fp['total_parcels'] );
-		update_post_meta( $order_id, '_wsa_courier_delivered',      $fp['delivered_parcels'] );
-		update_post_meta( $order_id, '_wsa_courier_cancelled',      $fp['cancelled_parcels'] );
-		update_post_meta( $order_id, '_wsa_courier_success_rate',   $fp['average_delivery_rate'] );
-		update_post_meta( $order_id, '_wsa_courier_data_source',    'courier_intelligence' );
+		return $this->calculate_fp_score_from_meta( $order_id );
+	}
 
-		// ── Risk scoring ──
-		$score            = 0;
-		$positive_signals = [];
-		$negative_signals = [];
+	private function check_packzy_intelligence( $order ) {
+		$phone    = $order->get_billing_phone();
+		$order_id = $order->get_id();
 
-		$total         = $fp['total_parcels'];
-		$delivery_rate = $fp['average_delivery_rate'];  // 0–100
-		$return_rate   = $fp['average_return_rate'];    // 0–100
-		$fraud_alerts  = $fp['fraud_alerts'];
-		$report_count  = $fp['report_count'];
-		$cancelled     = $fp['cancelled_parcels'];
-		$returned      = $fp['returned_parcels'];
-		$ai_score      = $fp['ai_risk_score'];          // 0–100 (higher = safer)
-		$courier_count = $fp['courier_sources'];
-
-		// ── 1. AI score — primary signal ─────────────────────────────────────
-		if ( $total === 0 ) {
-			$score += 5;
-			$negative_signals[] = 'No delivery history found across any courier (new customer)';
-		} elseif ( $ai_score >= 90 ) {
-			$score -= 40;
-			$positive_signals[] = sprintf( 'AI Score: Highly trusted customer (%d/100)', $ai_score );
-		} elseif ( $ai_score >= 75 ) {
-			$score -= 25;
-			$positive_signals[] = sprintf( 'AI Score: Low risk customer (%d/100)', $ai_score );
-		} elseif ( $ai_score >= 50 ) {
-			$score += 10;
-			$negative_signals[] = sprintf( 'AI Score: Moderate risk (%d/100)', $ai_score );
-		} elseif ( $ai_score >= 30 ) {
-			$score += 30;
-			$negative_signals[] = sprintf( 'AI Score: High risk customer (%d/100)', $ai_score );
-		} else {
-			$score += 50;
-			$negative_signals[] = sprintf( 'AI Score: Critical risk customer (%d/100)', $ai_score );
-		}
-
-		// ── 2. Fraud Alerts ───────────────────────────────────────────────────
-		if ( $fraud_alerts > 0 ) {
-			$penalty = min( $fraud_alerts * 20, 60 );
-			$score  += $penalty;
-			$negative_signals[] = sprintf( '%d fraud alert(s) on record across couriers', $fraud_alerts );
-		}
-
-		// ── 3. Community Reports ──────────────────────────────────────────────
-		if ( $report_count > 0 ) {
-			$score += min( $report_count * 10, 30 );
-			$negative_signals[] = sprintf( '%d fraud report(s) submitted by merchants', $report_count );
-		}
-
-		// ── 4. Delivery Rate ──────────────────────────────────────────────────
-		if ( $total > 0 ) {
-			if ( $delivery_rate >= 95 ) {
-				$score -= 20;
-				$positive_signals[] = sprintf( 'Excellent delivery rate: %.0f%% across %d couriers', $delivery_rate, $courier_count );
-			} elseif ( $delivery_rate >= 80 ) {
-				$score -= 10;
-				$positive_signals[] = sprintf( 'Good delivery rate: %.0f%%', $delivery_rate );
-			} elseif ( $delivery_rate >= 60 ) {
-				$score += 10;
-				$negative_signals[] = sprintf( 'Average delivery rate: %.0f%%', $delivery_rate );
-			} elseif ( $delivery_rate >= 40 ) {
-				$score += 25;
-				$negative_signals[] = sprintf( 'Low delivery rate: %.0f%% — high return risk', $delivery_rate );
-			} else {
-				$score += 45;
-				$negative_signals[] = sprintf( 'Very low delivery rate: %.0f%% — very high return risk', $delivery_rate );
+		// 1. Try DB cache (unless bypassing)
+		if ( ! $this->bypass_cache ) {
+			$existing_pz_data = $this->find_recent_intelligence_by_phone( $phone, '_wsa_packzy_count' );
+			if ( $existing_pz_data ) {
+				$this->sync_intelligence_meta( $order_id, $existing_pz_data['id'], 'packzy' );
+				
+				$count = get_post_meta( $order_id, '_wsa_packzy_count', true );
+				if ( $count !== '' ) {
+					return $this->calculate_pz_score_from_meta( $order_id );
+				}
 			}
 		}
 
-		// ── 5. Return Rate ────────────────────────────────────────────────────
-		if ( $return_rate > 20 ) {
-			$score += 20;
-			$negative_signals[] = sprintf( 'High return rate: %.0f%%', $return_rate );
-		} elseif ( $return_rate > 10 ) {
-			$score += 10;
-			$negative_signals[] = sprintf( 'Elevated return rate: %.0f%%', $return_rate );
-		} elseif ( $return_rate === 0.0 && $total >= 3 ) {
-			$score -= 10;
-			$positive_signals[] = 'Zero return rate — customer accepts all deliveries';
+		require_once WSA_PATH . 'includes/Modules/Courier/PackzyService.php';
+		$service = new \WooSmartAutomation\Modules\Courier\PackzyService();
+		$data = $service->get_fraud_data( $phone, $this->bypass_cache );
+
+		if ( ! $data ) {
+			return [ 'score' => 0, 'positive_signals' => [], 'negative_signals' => [] ];
 		}
 
-		// ── 6. Cancellations ──────────────────────────────────────────────────
-		if ( $cancelled > 10 ) {
-			$score += 25;
-			$negative_signals[] = sprintf( '%d parcels cancelled across all couriers', $cancelled );
-		} elseif ( $cancelled > 4 ) {
-			$score += 12;
-			$negative_signals[] = sprintf( '%d parcels cancelled across all couriers', $cancelled );
+		if ( isset( $data['is_error'] ) && $data['is_error'] ) {
+			update_post_meta( $order_id, '_wsa_packzy_error', $data['message'] );
+			return [ 'score' => 0, 'positive_signals' => [], 'negative_signals' => [ '⚠️ Couriers Intelligence (Steadfast) is currently unavailable.' ] ];
 		}
 
-		// ── 7. Returned parcels ───────────────────────────────────────────────
-		if ( $returned > 5 ) {
-			$score += 20;
-			$negative_signals[] = sprintf( '%d parcels returned across couriers', $returned );
-		} elseif ( $returned > 2 ) {
-			$score += 10;
-			$negative_signals[] = sprintf( '%d parcels returned across couriers', $returned );
-		}
+		delete_post_meta( $order_id, '_wsa_packzy_error' );
+		update_post_meta( $order_id, '_wsa_packzy_count',     $data['total_parcels'] );
+		update_post_meta( $order_id, '_wsa_packzy_delivered', $data['total_delivered'] );
+		update_post_meta( $order_id, '_wsa_packzy_cancelled', $data['total_cancelled'] );
+		update_post_meta( $order_id, '_wsa_packzy_reports',   wp_json_encode( $data['total_fraud_reports'] ) );
 
-		// ── 8. Volume + Trust bonus ───────────────────────────────────────────
-		if ( $total >= 30 && $delivery_rate >= 90 ) {
-			$score -= 15;
-			$positive_signals[] = sprintf( 'Highly trusted: %d total parcels, %.0f%% delivery rate', $total, $delivery_rate );
-		} elseif ( $total >= 10 && $delivery_rate >= 85 ) {
-			$score -= 8;
-			$positive_signals[] = sprintf( 'Trusted customer: %d parcels, %.0f%% delivery rate', $total, $delivery_rate );
-		}
+		return $this->calculate_pz_score_from_meta( $order_id );
+	}
 
-		// ── 9. Multi-courier coverage ─────────────────────────────────────────
-		if ( $courier_count >= 3 ) {
-			$positive_signals[] = sprintf( 'Data verified across %d different couriers', $courier_count );
-		}
-
-		return [
-			'score'            => $score,
-			'positive_signals' => $positive_signals,
-			'negative_signals' => $negative_signals,
+	/**
+	 * Sync meta from one order to another
+	 */
+	private function sync_intelligence_meta( $target_id, $source_id, $type ) {
+		$keys = ( $type === 'fp' ) ? [
+			'_wsa_fp_available', '_wsa_fp_risk_score', '_wsa_fp_ai_risk_score',
+			'_wsa_fp_risk_level', '_wsa_fp_risk_message', '_wsa_fp_ai_summary',
+			'_wsa_fp_total_parcels', '_wsa_fp_available',
+			'_wsa_fp_delivered', '_wsa_fp_cancelled', '_wsa_fp_returned',
+			'_wsa_fp_delivery_rate', '_wsa_fp_report_count', '_wsa_fp_courier_sources',
+			'_wsa_fp_couriers', '_wsa_fp_fetched_at'
+		] : [
+			'_wsa_packzy_count', '_wsa_packzy_delivered', '_wsa_packzy_cancelled',
+			'_wsa_packzy_reports'
 		];
+
+		foreach ( $keys as $key ) {
+			$val = get_post_meta( $source_id, $key, true );
+			if ( $val !== '' ) {
+				update_post_meta( $target_id, $key, $val );
+			}
+		}
+	}
+
+	/**
+	 * Find a recent order with the same phone that has intelligence data
+	 */
+	private function find_recent_intelligence_by_phone( $phone, $check_meta_key ) {
+		if ( empty( $phone ) ) return false;
+
+		global $wpdb;
+		// Find orders with this phone number from last 24 hours that have the data
+		$recent_order = $wpdb->get_row( $wpdb->prepare(
+			"SELECT p.ID FROM {$wpdb->posts} p
+			JOIN {$wpdb->postmeta} pm1 ON p.ID = pm1.post_id AND pm1.meta_key = '_billing_phone' AND pm1.meta_value = %s
+			JOIN {$wpdb->postmeta} pm2 ON p.ID = pm2.post_id AND pm2.meta_key = %s
+			WHERE p.post_type = 'shop_order' 
+			AND p.post_date > DATE_SUB(NOW(), INTERVAL 24 HOUR)
+			ORDER BY p.ID DESC LIMIT 1",
+			$phone,
+			$check_meta_key
+		) );
+
+		return $recent_order ? [ 'id' => $recent_order->ID ] : false;
+	}
+
+	/**
+	 * Recalculate FP score from meta (Helper for caching)
+	 */
+	private function calculate_fp_score_from_meta( $order_id ) {
+		$ai_score = (int) get_post_meta( $order_id, '_wsa_fp_ai_risk_score', true );
+		$total    = (int) get_post_meta( $order_id, '_wsa_fp_total_parcels', true );
+		$alerts   = (int) get_post_meta( $order_id, '_wsa_fp_fraud_alerts', true );
+
+		$score = 0;
+		$pos = []; $neg = [];
+
+		if ( $total === 0 ) {
+			$score -= 5;
+			$neg[] = 'No delivery history found across any courier (new customer)';
+		} elseif ( $ai_score >= 90 ) {
+			$score += 40;
+			$pos[] = sprintf( 'AI Score: Highly trusted customer (%d/100)', $ai_score );
+		} elseif ( $ai_score >= 75 ) {
+			$score += 25;
+			$pos[] = sprintf( 'AI Score: Low risk customer (%d/100)', $ai_score );
+		} elseif ( $ai_score < 40 ) {
+			$score -= 30;
+			$neg[] = sprintf( 'AI Score: Risky customer profile (%d/100)', $ai_score );
+		}
+
+		if ( $alerts > 0 ) {
+			$score -= ( $alerts * 40 );
+			$neg[] = sprintf( '%d Multi-Courier Fraud alert(s) found (FraudPeek)', $alerts );
+		}
+
+		return [ 'score' => $score, 'positive_signals' => $pos, 'negative_signals' => $neg ];
+	}
+
+	/**
+	 * Recalculate PZ score from meta (Helper for caching)
+	 */
+	private function calculate_pz_score_from_meta( $order_id ) {
+		$total     = (int) get_post_meta( $order_id, '_wsa_packzy_count', true );
+		$delivered = (int) get_post_meta( $order_id, '_wsa_packzy_delivered', true );
+		$reports   = json_decode( get_post_meta( $order_id, '_wsa_packzy_reports', true ), true ) ?: [];
+
+		$score = 0;
+		$pos = []; $neg = [];
+
+		if ( $total > 0 ) {
+			$rate = ( $delivered / $total ) * 100;
+			if ( $rate >= 90 ) {
+				$score += 15;
+				$pos[] = sprintf( 'Steadfast: Good delivery rate (%.0f%%)', $rate );
+			} elseif ( $rate < 60 ) {
+				$score -= 20;
+				$neg[] = sprintf( 'Steadfast: Low delivery rate (%.0f%%)', $rate );
+			}
+		}
+
+		if ( count( $reports ) > 0 ) {
+			$score -= ( count( $reports ) * 50 );
+			$neg[] = sprintf( '%d Fraud Report(s) found on Steadfast', count( $reports ) );
+		}
+
+		return [ 'score' => $score, 'positive_signals' => $pos, 'negative_signals' => $neg ];
 	}
 }

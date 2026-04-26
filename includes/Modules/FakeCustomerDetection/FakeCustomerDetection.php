@@ -156,11 +156,11 @@ class FakeCustomerDetection {
 			return;
 		}
 
-		$threshold     = (int) get_option( 'wsa_auto_action_score', 20 );
+		$threshold     = (int) get_option( 'wsa_auto_action_score', 30 );
 		$target_status = get_option( 'wsa_auto_action_status', 'on-hold' );
 
-		// NEW LOGIC: Trigger action if score is BELOW threshold (Higher is now better)
-		if ( $score < $threshold && $score > 0 ) {
+		// Trust Score Logic: Trigger action if score is BELOW threshold (Lower is now risky)
+		if ( $score < $threshold && $score >= 0 ) {
 			$current_status = $order->get_status();
 
 			// Enforce target status if current status is not target, cancelled, or failed
@@ -169,7 +169,7 @@ class FakeCustomerDetection {
 				remove_action( 'woocommerce_order_status_changed', [ $this, 'schedule_risk_on_status_change' ], 10 );
 
 				$order->update_status( $target_status, sprintf(
-					__( 'Low delivery score (%d) detected (Threshold: %d). Enforcing %s status to prevent potential return/fraud.', 'woo-smart-automation' ),
+					__( 'Low delivery reliability score (%d) detected (Threshold: %d). Moving to %s to prevent potential return/fraud.', 'woo-smart-automation' ),
 					$score,
 					$threshold,
 					$target_status
